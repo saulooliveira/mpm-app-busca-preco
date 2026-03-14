@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BuscaPreco
+namespace BuscaPreco.Domain.Entities
 {
     public class Produto
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BuscaPreco
+namespace BuscaPreco.CrossCutting
 {
     using System;
     using System.IO;

@@ -6,8 +6,9 @@ using System.Net.Sockets;
 using System.Net;
 using System.Threading;
 using System.Windows.Forms;
+using BuscaPreco.Domain.Entities;
 
-namespace BuscaPreco
+namespace BuscaPreco.Infrastructure.Scrapers
 {
     class Terminal
     {
@@ -19,19 +20,18 @@ namespace BuscaPreco
         
         private Socket sock; // socket do terminal
         private Thread meuProcesso; // thread para controlar o processo do terminal]
-        private Thread 
-        private IPEndPoint IP; // IP da conex„o
+        private IPEndPoint IP; // IP da conex√£o
         
         private string tipo; // tipo do terminal
-        private string versao; // vers„o do terminal
+        private string versao; // vers√£o do terminal
 
-        public Configuracoes config;// gerencia as configuraÁıes dos terminais
+        public Configuracoes config;// gerencia as configura√ß√µes dos terminais
 
         /*
-         MÈtodo: Terminal
-         FunÁ„o: Construtor da classe, inicia a thread para o terminal
+         M√©todo: Terminal
+         Fun√ß√£o: Construtor da classe, inicia a thread para o terminal
          
-         Entrada: socket - socket para a comunicaÁ„o com o terminal
+         Entrada: socket - socket para a comunica√ß√£o com o terminal
          */
         public Terminal(Socket socket){
             sock = socket; // Atribui o socket para o atributo sock
@@ -41,17 +41,17 @@ namespace BuscaPreco
         }
 
         /*
-         MÈtodo: ToString
-         FunÁ„o: MÈtodo reescrito para altera o modo como o objeto È visto em forma de string
+         M√©todo: ToString
+         Fun√ß√£o: M√©todo reescrito para altera o modo como o objeto √© visto em forma de string
          */
         override public string ToString(){
-            string ip = IP.ToString().Substring(0, IP.ToString().IndexOf(':')); // corta a porta de conex„o mantendo somente o IP
-            return ip.ToString()+":"+tipo + "/" + versao; // retorna IP:tipo/vers„o
+            string ip = IP.ToString().Substring(0, IP.ToString().IndexOf(':')); // corta a porta de conex√£o mantendo somente o IP
+            return ip.ToString()+":"+tipo + "/" + versao; // retorna IP:tipo/vers√£o
         }
 
         /*
-         MÈtodo: sendConfig
-         FunÁ„o: Envia a configuraÁ„o para o terminal (#reconf02)
+         M√©todo: sendConfig
+         Fun√ß√£o: Envia a configura√ß√£o para o terminal (#reconf02)
          */
         public void sendConfig() {
             EnviaParaTerminal(config.montaConfig()); // envia para o terminal
@@ -60,8 +60,8 @@ namespace BuscaPreco
         }
 
         /*
-         MÈtodo: sendParam
-         FunÁ„o: Envia os parametros para o terminal (#paramconfig)
+         M√©todo: sendParam
+         Fun√ß√£o: Envia os parametros para o terminal (#paramconfig)
          */
         public void sendParam() {
             EnviaParaTerminal(config.montaParamConfig()); // envia para o terminal
@@ -70,8 +70,8 @@ namespace BuscaPreco
         }
 
         /*
-         MÈtodo: sendUpdate
-         FunÁ„o: Envia o update para o terminal (#updconfig)
+         M√©todo: sendUpdate
+         Fun√ß√£o: Envia o update para o terminal (#updconfig)
          */
         public void sendUpdate() {
             EnviaParaTerminal(config.montaUpdateConfig()); // envia para o terminal
@@ -80,21 +80,21 @@ namespace BuscaPreco
         }
 
         /*
-         MÈtodo: EnviaTexto
-         FunÁ„o: Monta a mensagem para o terminal mostrar um texto na tela
+         M√©todo: EnviaTexto
+         Fun√ß√£o: Monta a mensagem para o terminal mostrar um texto na tela
          
-         Entrada: linha1 - Conte˙do da 1™ linha
-                  linha2 - Conte˙do da 2™ linha
-                  tempo - tempo de exibiÁ„o do texto
+         Entrada: linha1 - Conte√∫do da 1¬™ linha
+                  linha2 - Conte√∫do da 2¬™ linha
+                  tempo - tempo de exibi√ß√£o do texto
          */
         public void EnviaTexto(string linha1, string linha2, int tempo){
             // captura o tamanho do texto (a tela do terminal so permite 20 caracteres por linha)
-            // para que a string n„o tenha caracteres indefinidos os valores numÈricos s„o adicionados de 48 (0 na tabela ASCII)
+            // para que a string n√£o tenha caracteres indefinidos os valores num√©ricos s√£o adicionados de 48 (0 na tabela ASCII)
             int tamanhoLinha1 = linha1.Length>20?20:linha1.Length + 48;
             int tamanhoLinha2 = linha2.Length>20?20:linha2.Length + 48;
             tempo = tempo + 48;
             
-            // convertendo os caracteres numÈricos em texto
+            // convertendo os caracteres num√©ricos em texto
             char valorLinha1 = (char)tamanhoLinha1;
             char valorLinha2 = (char)tamanhoLinha2;
             char tempoExibicao = (char)tempo;
@@ -105,8 +105,8 @@ namespace BuscaPreco
         }
 
         /*
-         MÈtodo: Reset
-         FunÁ„o: Reinicia o terminal
+         M√©todo: Reset
+         Fun√ß√£o: Reinicia o terminal
          */
         public void Reset() { 
             byte[] senhaBytes = { 0xa5, 0xcc, 0x5a, 0x33 };
@@ -117,19 +117,19 @@ namespace BuscaPreco
         }
 
         /*
-         MÈtodo: SendProdNFound
-         FunÁ„o: Envia para o terminal "produto n„o encontrado"
+         M√©todo: SendProdNFound
+         Fun√ß√£o: Envia para o terminal "produto n√£o encontrado"
          */
         public void SendProdNFound() {
             EnviaParaTerminal("#nfound");
         }
 
         /*
-         MÈtodo: SendProcPrice
-         FunÁ„o: Envia para o terminal a descriÁ„o e o preÁo de um produto
+         M√©todo: SendProcPrice
+         Fun√ß√£o: Envia para o terminal a descri√ß√£o e o pre√ßo de um produto
          
-         Entrada: desc - descriÁ„o do produto
-                  price - preÁo do produto
+         Entrada: desc - descri√ß√£o do produto
+                  price - pre√ßo do produto
          */
         public void SendProcPrice(string desc, string price) {
             // monta a string e envia para o terminal
@@ -137,19 +137,19 @@ namespace BuscaPreco
         }
 
         /*
-         MÈtodo: ConverteStringToBytes
-         FunÁ„o: Converte a string UTF (2 bytes por caractere) para ASC (1 byte por caractere)
+         M√©todo: ConverteStringToBytes
+         Fun√ß√£o: Converte a string UTF (2 bytes por caractere) para ASC (1 byte por caractere)
          
          Entrada: str - string a ser convertida
-         Retorno: Vetor de bytes contendo o cÛdigo ASC de cada caractere
+         Retorno: Vetor de bytes contendo o c√≥digo ASC de cada caractere
          */
         private byte[] ConverteStringToBytes(string str){
             return new System.Text.ASCIIEncoding().GetBytes(str);
         }
 
         /*
-         MÈtodo: EnviaParaTerminal
-         FunÁ„o: FunÁ„o que envia os bytes para o terminal
+         M√©todo: EnviaParaTerminal
+         Fun√ß√£o: Fun√ß√£o que envia os bytes para o terminal
          
          Entrada: comando - string contendo o comando
          */
@@ -158,22 +158,22 @@ namespace BuscaPreco
         }
 
         /*
-         MÈtodo: RecebeDoTerminal
-         FunÁ„o: Faz a leitura do socket
+         M√©todo: RecebeDoTerminal
+         Fun√ß√£o: Faz a leitura do socket
          
-         SaÌda: comando - contÍm o comando do teminal
+         Sa√≠da: comando - cont√™m o comando do teminal
          Retorno: 0 - leitura efetuada com sucesso
                   1 - Ocorreu timeout
-                 -1 - Erro (desconex„o do terminal)
+                 -1 - Erro (desconex√£o do terminal)
          */
         private int RecebeDoTerminal(ref string comando){
             comando = null; //  zera a string comando
             byte[] dados = new byte[255]; // cria um vetor de 255 bytes
-            ArrayList listaSock = new ArrayList(); // cria uma lista para armazenar o socket (FunÁ„o Select)
-            listaSock.Add(sock); // adiciona o socket ‡ lista
+            ArrayList listaSock = new ArrayList(); // cria uma lista para armazenar o socket (Fun√ß√£o Select)
+            listaSock.Add(sock); // adiciona o socket √† lista
             try
             {
-                Socket.Select(listaSock, null, null, 5 * 1000000); // impıe um timeout para a leitura
+                Socket.Select(listaSock, null, null, 5 * 1000000); // imp√µe um timeout para a leitura
                 if (listaSock.Count == 1)// se o terminal enviou algo
                 {
                     sock.Receive(dados);// faz a leitura
@@ -188,24 +188,24 @@ namespace BuscaPreco
         }
     
         /*
-         MÈtodo: ProcessaTerminal
-         FunÁ„o: FunÁ„o entra em loop para tratar a conex„o com o terminal
+         M√©todo: ProcessaTerminal
+         Fun√ß√£o: Fun√ß√£o entra em loop para tratar a conex√£o com o terminal
          */
         private void ProcessaTerminal(){
             string paraServidor; // String que recebe os comandos
-            int controleConectado;// Recebe o estado da conex„o
-            int contLive = 0;// controla se haver· desconex„o forÁada do terminal (terminal n„o responde)
+            int controleConectado;// Recebe o estado da conex√£o
+            int contLive = 0;// controla se haver√° desconex√£o for√ßada do terminal (terminal n√£o responde)
 
             paraServidor = "init"; //inicia a string
             EnviaParaTerminal("#ok");// envia a string "#OK" para o terminal
             RecebeDoTerminal(ref paraServidor);// recebe a reposta do terminal
 
-            IP = (IPEndPoint)sock.RemoteEndPoint;// configura o IP da conex„o
-            // recolhe o tipo e a vers„o do terminal
+            IP = (IPEndPoint)sock.RemoteEndPoint;// configura o IP da conex√£o
+            // recolhe o tipo e a vers√£o do terminal
             tipo = paraServidor.Substring(1, paraServidor.LastIndexOf('|') - 1);
             versao = paraServidor.Substring(paraServidor.LastIndexOf('|') + 1);
 
-            // pede a configuraÁ„o do terminal
+            // pede a configura√ß√£o do terminal
             EnviaParaTerminal("#config02?");
             Thread.Sleep(500);
             RecebeDoTerminal(ref paraServidor);
@@ -217,7 +217,7 @@ namespace BuscaPreco
             RecebeDoTerminal(ref paraServidor);
             config.ProcessaParam(paraServidor);
 
-            // pede as opÁıes de atualizaÁ„o
+            // pede as op√ß√µes de atualiza√ß√£o
             EnviaParaTerminal("#updconfig?");
             Thread.Sleep(500);
             RecebeDoTerminal(ref paraServidor);
@@ -242,7 +242,7 @@ namespace BuscaPreco
                     if (paraServidor.CompareTo("#live") == 0)// verifica se a mensagem foi a resposta do live
                         contLive = 0; // zera a contagem do live
                     else {// se foi qualquer outro comando
-                        if (onReceive != null)// verifica se h· funÁ„o para receber o evento
+                        if (onReceive != null)// verifica se h√° fun√ß√£o para receber o evento
                             onReceive(this,paraServidor);// envia o evento
                     }
                 }

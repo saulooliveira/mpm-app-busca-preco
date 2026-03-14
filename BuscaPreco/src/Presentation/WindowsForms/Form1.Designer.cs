@@ -1,4 +1,4 @@
-﻿namespace BuscaPreco
+﻿namespace BuscaPreco.Presentation.WindowsForms
 {
     partial class Form1
     {

@@ -1,21 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Collections;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Text;
-using System.Windows.Forms;
 using System.Globalization;
-using System.Text.RegularExpressions;
 using System.IO;
-using System.Runtime.CompilerServices;
+using System.Windows.Forms;
+using BuscaPreco.Application.Interfaces;
+using BuscaPreco.CrossCutting;
+using BuscaPreco.Infrastructure.Repositories;
+using BuscaPreco.Infrastructure.Scrapers;
 
-namespace BuscaPreco
+namespace BuscaPreco.Presentation.WindowsForms
 {
     public partial class Form1 : Form
     {
-        Logger logger = new Logger();
+        private readonly Logger logger;
+        private readonly IBuscaPrecosService buscaPrecosService;
 
         Servidor servidor; //cria uma instancia do servidor
 
@@ -26,59 +24,17 @@ namespace BuscaPreco
         delegate void SafeListChange();// evento para alterar a lista
         delegate void Escreve(string str); // evento para escrever no histrico
  
-        DbfDatabase db;
 
         /*
         Método: Form1
         Função: Construtor da classe
         */
-        public Form1()
+        public Form1(Logger logger, IBuscaPrecosService buscaPrecosService)
         {
-            
-            logger.Info("Iniciando App...");
+            this.logger = logger;
+            this.buscaPrecosService = buscaPrecosService;
 
-            // Obtém o diretório de execução do aplicativo
-            string exeDirectory = AppDomain.CurrentDomain.BaseDirectory;
-
-            // Combina o diretório de execução com o nome do arquivo config.yaml
-            string caminhoConfig = Path.Combine(exeDirectory, "config.yaml");
-
-            logger.Info($"config caminho {caminhoConfig}");
-
-            ConfigReader configReader = new ConfigReader(caminhoConfig);
-            DbfConfig config = configReader.LoadConfig();
-
-
-            string caminhoDbf = config.DbfFilePath;
-            logger.Info($"config caminhoDbf {caminhoDbf}");
-
-            this.db = new DbfDatabase(caminhoDbf, this.logger);
-
-
-            // 
-            try
-            {
-                logger.Info($"FileSystemWatcher caminhoDbf {caminhoDbf}");
-                // Cria o FileSystemWatcher para monitorar o diretório
-                FileSystemWatcher watcher = new FileSystemWatcher();
-
-                // Configura o diretório e os tipos de alteração que queremos monitorar
-                watcher.Path = Path.GetDirectoryName(config.DbfFilePath);
-                watcher.Filter = Path.GetFileName(config.DbfFilePath);
-                watcher.NotifyFilter = NotifyFilters.LastWrite;
-
-                // Define os eventos a serem monitorados: criação, modificação e exclusão de arquivos
-                watcher.Changed += new FileSystemEventHandler(OnChanged);
-
-                // Ativa o monitoramento
-                watcher.EnableRaisingEvents = true;
-            }
-            catch (Exception ex)
-            {
-
-                logger.Info($"FileSystemWatcher {ex.Message}");
-            }
-
+            this.logger.Info("Iniciando App...");
             InitializeComponent();// inicializa o formulario
         }
 
@@ -91,7 +47,7 @@ namespace BuscaPreco
         private void OnChanged(object source, FileSystemEventArgs e)
         {
             logger.Info($"ExportarParaMGV7 {source} {e.FullPath} {e.ChangeType}");
-            var prods = this.db.ListarTudo();
+            var prods = this.buscaPrecosService.ListarTudo();
             Exportador.ExportarParaMGV7(prods, Path.Combine(AppContext.BaseDirectory, "ITENSMGV.TXT"));
         }
 
@@ -204,10 +160,10 @@ namespace BuscaPreco
             
     
 
-            str = Regex.Replace(str, @"\D", "");
+            str = Validators.SomenteDigitos(str);
 
             // Substitua "1234" pelo valor do COD que você quer buscar
-            var resultado = db.BuscarPorCodigo(str);
+            var resultado = buscaPrecosService.BuscarPorCodigo(str);
 
             if (resultado.des != null)
             {
