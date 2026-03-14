@@ -25,10 +25,14 @@ jobs:
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Restore packages
         run: nuget restore BuscaPreco.sln
 
       - name: Build solution
+        shell: cmd
         run: msbuild BuscaPreco.sln /t:Build /p:Configuration=Release /p:Platform="Any CPU"
 
       - name: Run tests (placeholder for .NET Framework test projects)
