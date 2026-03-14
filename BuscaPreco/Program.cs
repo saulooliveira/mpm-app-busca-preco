@@ -61,6 +61,7 @@ namespace BuscaPreco
                     services.Configure<DbfConfig>(context.Configuration.GetSection("DbfConfig"));
                     services.Configure<TerminalConfig>(context.Configuration.GetSection("Terminal"));
                     services.Configure<EmailConfig>(context.Configuration.GetSection("Email"));
+                    services.Configure<FeatureConfig>(context.Configuration.GetSection("Features"));
 
                     services.AddSingleton(sp => sp.GetRequiredService<IOptions<DbfConfig>>().Value);
                     services.AddSingleton<Logger>();
@@ -74,9 +75,14 @@ namespace BuscaPreco
                     });
 
                     services.AddSingleton<IProdutoRepository, ProdutoRepository>();
+                    services.AddSingleton<IProdutoCacheTracker, ProdutoCacheTracker>();
+                    services.AddSingleton<ITerminalActivityMonitor, TerminalActivityMonitor>();
                     services.AddSingleton<IBuscaPrecosService, BuscaPrecosService>();
+                    services.AddSingleton<IAlertService, WebhookAlertService>();
+                    services.AddSingleton<ITerminalDisplayService, TerminalDisplayService>();
                     services.AddSingleton<IEmailService, EmailService>();
                     services.AddHostedService<RelatorioDiarioBackgroundService>();
+                    services.AddHostedService<ScreensaverPromocionalBackgroundService>();
 
                     services.AddTransient<Form1>();
                     services.AddSingleton<Func<Form1>>(sp => () => sp.GetRequiredService<Form1>());
