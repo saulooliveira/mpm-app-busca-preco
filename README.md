@@ -1,112 +1,86 @@
 # BuscaPreco
 
-Aplicação desktop em **C#/.NET** para consulta de preços de produtos a partir de base DBF e integração com terminais de consulta. O projeto foi reorganizado para uma estrutura orientada a **Clean Architecture**, separando responsabilidades de domínio, aplicação, infraestrutura e componentes transversais.
+Aplicação desktop em **C#/.NET WinForms** executando no **System Tray** como backend local para terminal Gertec Busca Preço G2 E.
 
-## Arquitetura
+## Configuração centralizada em YAML
 
-```text
-BuscaPreco/
-├── BuscaPreco.csproj
-├── src/
-│   ├── Domain/
-│   │   ├── Entities/
-│   │   │   ├── Produto.cs
-│   │   │   └── Configuracoes.cs
-│   │   └── Interfaces/
-│   │       └── IProdutoRepository.cs
-│   ├── Application/
-│   │   ├── Services/
-│   │   │   └── BuscaPrecosService.cs
-│   │   └── Interfaces/
-│   │       └── IBuscaPrecosService.cs
-│   ├── Infrastructure/
-│   │   ├── Data/
-│   │   │   ├── DBConfig.cs
-│   │   │   └── DbfConnection.cs
-│   │   ├── Repositories/
-│   │   │   ├── ProdutoRepository.cs
-│   │   │   └── Exportador.cs
-│   │   ├── HttpClients/
-│   │   │   └── PrecosHttpClient.cs
-│   │   └── Scrapers/
-│   │       ├── Servidor.cs
-│   │       └── Terminal.cs
-│   ├── CrossCutting/
-│   │   ├── Logger.cs
-│   │   └── Validators.cs
-│   └── Presentation/
-│       └── WindowsForms/
-│           ├── Form1.cs
-│           ├── Form1.Designer.cs
-│           └── Form1.resx
-├── Tests/
-│   ├── UnitTests/
-│   └── IntegrationTests/
-├── appsettings.json
-└── Program.cs
+A aplicação agora lê **todas** as configurações via `config.yaml` (raiz do projeto `BuscaPreco/`) usando `NetEscapades.Configuration.Yaml` + `IOptions<T>`.
+
+### Exemplo de `config.yaml`
+
+```yaml
+DbfConfig:
+  DbfFilePath: "C:/Users/Cadastro/Documents/Cadger/CADITE.DBF"
+
+Terminal:
+  Porta: 6500
+  ReconnectDelayMs: 5000
+
+Email:
+  SmtpHost: "smtp.seuprovedor.com"
+  SmtpPort: 587
+  EnableSsl: true
+  Username: "usuario@dominio.com"
+  Password: "senha-segura"
+  Remetente: "buscapreco@mercadoprogressomineiro.com"
+  Destinatario: "gestor@mercadoprogressomineiro.com"
+  DailyReportTime: "23:55"
+  LogDirectory: "logs"
+
+Serilog:
+  Using:
+    - Serilog.Sinks.File
+  MinimumLevel:
+    Default: Information
+  WriteTo:
+    - Name: File
+      Args:
+        path: "logs/consultas-.txt"
+        rollingInterval: Day
+        retainedFileCountLimit: 30
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} CodigoBarras={CodigoBarras} Nome={Nome} Preco={Preco} Status={Status} {Message:lj}{NewLine}"
+  Enrich:
+    - FromLogContext
 ```
 
-### Propósito das camadas
+## Novas funcionalidades
 
-- **Domain**: regras de negócio centrais e contratos (sem dependência de infraestrutura).
-- **Application**: orquestração de casos de uso (serviços de aplicação que dependem de contratos do Domain).
-- **Infrastructure**: implementação técnica (DBF, repositórios, comunicação com terminal, integrações externas).
-- **CrossCutting**: utilitários compartilhados (log, validações, helpers).
-- **Presentation**: interface WinForms e interação com usuário.
+### 1) Reconexão automática do terminal
 
-## Fluxo de busca de preço
+- Serviço de comunicação (`Servidor`) com laço de reconexão.
+- Em falha de bind/conexão, registra log e aguarda `Terminal:ReconnectDelayMs` antes de nova tentativa.
+- Aplicação continua ativa no tray.
 
-```mermaid
-flowchart TD
-    A[Program.cs / Composition Root] --> B[Form1 - Presentation]
-    B --> C[IBuscaPrecosService - Application]
-    C --> D[IProdutoRepository - Domain Contract]
-    D --> E[ProdutoRepository - Infrastructure]
-    E --> F[DbfDatabase - Infrastructure/Data]
-    F --> G[(Arquivo DBF)]
-    C --> H[Produto - Domain Entity]
-    H --> B
-    B --> I[Terminal/Servidor - Infrastructure/Scrapers]
-```
+### 2) Log de auditoria estruturado
 
-## Setup e instalação
+- `IBuscaPrecosService` registra toda consulta de código de barras com:
+  - Data/hora
+  - Código
+  - Nome
+  - Preço
+  - Status (Encontrado/Não Cadastrado)
+- Serilog grava em arquivo diário em `logs/consultas-yyyyMMdd.txt`.
 
-> Pré-requisitos: .NET SDK/Build Tools compatível com o framework do projeto e dependências restauráveis pelo NuGet.
+### 3) Relatório diário por e-mail
 
-### 1) Restaurar pacotes
+- `RelatorioDiarioBackgroundService` agenda envio conforme `Email:DailyReportTime`.
+- `EmailService` lê o log do dia e envia resumo automático com assunto:
+  - **Relatório de Consultas Diárias - Mercado Progresso Mineiro**
+
+## Principais classes adicionadas/alteradas
+
+- `Application/Configurations/TerminalConfig.cs`
+- `Application/Configurations/EmailConfig.cs`
+- `Application/Interfaces/IEmailService.cs`
+- `Application/Services/RelatorioDiarioBackgroundService.cs`
+- `Infrastructure/Services/EmailService.cs`
+- `Infrastructure/Scrapers/Servidor.cs`
+- `Application/Services/BuscaPrecosService.cs`
+- `Program.cs`
+
+## Build
 
 ```bash
 nuget restore BuscaPreco.sln
+msbuild BuscaPreco.sln /p:Configuration=Release
 ```
-
-ou
-
-```bash
-dotnet restore BuscaPreco.sln
-```
-
-### 2) Banco/migrations (quando aplicável)
-
-Atualmente o projeto usa DBF (sem EF Core em produção). Caso evolua para EF Core:
-
-```bash
-dotnet ef database update
-```
-
-### 3) Executar a aplicação
-
-Com Visual Studio (recomendado para WinForms) ou via CLI:
-
-```bash
-dotnet run --project BuscaPreco/BuscaPreco.csproj
-```
-
-## Script de referência para reorganização
-
-Há um script utilitário em:
-
-```text
-scripts/reorganizar-clean-architecture.sh
-```
-
-Ele documenta a sequência de criação de diretórios e movimentação de arquivos para a estrutura limpa.

@@ -1,2 +1,32 @@
 DbfConfig:
   DbfFilePath: "C:/Users/Cadastro/Documents/Cadger/CADITE.DBF"
+
+Terminal:
+  Porta: 6500
+  ReconnectDelayMs: 5000
+
+Email:
+  SmtpHost: "smtp.seuprovedor.com"
+  SmtpPort: 587
+  EnableSsl: true
+  Username: "usuario@dominio.com"
+  Password: "senha-segura"
+  Remetente: "buscapreco@mercadoprogressomineiro.com"
+  Destinatario: "gestor@mercadoprogressomineiro.com"
+  DailyReportTime: "23:55"
+  LogDirectory: "logs"
+
+Serilog:
+  Using:
+    - Serilog.Sinks.File
+  MinimumLevel:
+    Default: Information
+  WriteTo:
+    - Name: File
+      Args:
+        path: "logs/consultas-.txt"
+        rollingInterval: Day
+        retainedFileCountLimit: 30
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} CodigoBarras={CodigoBarras} Nome={Nome} Preco={Preco} Status={Status} {Message:lj}{NewLine}"
+  Enrich:
+    - FromLogContext
