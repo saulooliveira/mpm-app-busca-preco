@@ -19,6 +19,27 @@ namespace BuscaPreco.Domain.Entities
         public string EANFornecedor { get; set; } = "";// EAN do Fornecedor
         public string PercentualGlaciamento { get; set; } = ""; // Percentual de Glaciamento
         public string PrecoPromocional { get; set; } = "";// Preço Promocional
+
+
+        // Compatibilidade com legado: mantém contratos antigos usados por serviços de aplicação.
+        public string cod
+        {
+            get => CodigoItem;
+            set => CodigoItem = value;
+        }
+
+        public string des
+        {
+            get => Descricao1;
+            set => Descricao1 = value;
+        }
+
+        public decimal vlrVenda1
+        {
+            get => Preco;
+            set => Preco = value;
+        }
+
         public Produto()
         {
 
