@@ -164,7 +164,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             // Substitua "1234" pelo valor do COD que você quer buscar
             var resultado = buscaPrecosService.BuscarPorCodigo(str);
 
-            if (resultado.des != null)
+            if (!string.IsNullOrWhiteSpace(resultado.des))
             {
                 // envia a consulta para o terminal
                 string descricao = resultado.des.Length > 20 ? resultado.des.Substring(0, 20) : resultado.des;

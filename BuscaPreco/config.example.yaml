@@ -7,7 +7,7 @@ Terminal:
 
 Features:
   CacheTTLMinutes: 10
-  WebhookUrl: ""
+  WebhookUrl: "https://hooks.exemplo.com/produto-nao-cadastrado"
   IdleTimeoutSeconds: 30
   ScreensaverRotationSeconds: 5
 
