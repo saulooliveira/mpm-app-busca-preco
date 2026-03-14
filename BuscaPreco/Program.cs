@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.Application.Services;
@@ -34,22 +33,28 @@ namespace BuscaPreco
 
             host.StopAsync().GetAwaiter().GetResult();
             host.Dispose();
+            Log.CloseAndFlush();
         }
 
         private static IHost CreateHost()
         {
             var basePath = AppDomain.CurrentDomain.BaseDirectory;
 
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(basePath)
+                .AddYamlFile("config.yaml", optional: false, reloadOnChange: true)
+                .Build();
+
+            Log.Logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(configuration)
+                .CreateLogger();
+
             return Host.CreateDefaultBuilder()
                 .ConfigureAppConfiguration((_, config) =>
                 {
                     config.Sources.Clear();
                     config.SetBasePath(basePath);
-                    config.AddYamlFile("config.yaml", optional: false, reloadOnChange: true);
-                })
-                .UseSerilog((context, _, loggerConfig) =>
-                {
-                    loggerConfig.ReadFrom.Configuration(context.Configuration);
+                    config.AddConfiguration(configuration);
                 })
                 .ConfigureServices((context, services) =>
                 {
