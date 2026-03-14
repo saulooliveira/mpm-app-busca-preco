@@ -68,10 +68,20 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="src\Application\Configurations\EmailConfig.cs" />
+    <Compile Include="src\Application\Configurations\FeatureConfig.cs" />
     <Compile Include="src\Application\Configurations\TerminalConfig.cs" />
     <Compile Include="src\Application\Interfaces\IEmailService.cs" />
+    <Compile Include="src\Application\Interfaces\IAlertService.cs" />
+    <Compile Include="src\Application\Interfaces\IProdutoCacheTracker.cs" />
+    <Compile Include="src\Application\Interfaces\ITerminalActivityMonitor.cs" />
+    <Compile Include="src\Application\Interfaces\ITerminalDisplayService.cs" />
     <Compile Include="src\Application\Services\RelatorioDiarioBackgroundService.cs" />
+    <Compile Include="src\Application\Services\ProdutoCacheTracker.cs" />
+    <Compile Include="src\Application\Services\ScreensaverPromocionalBackgroundService.cs" />
+    <Compile Include="src\Application\Services\TerminalActivityMonitor.cs" />
     <Compile Include="src\Infrastructure\Services\EmailService.cs" />
+    <Compile Include="src\Infrastructure\Services\TerminalDisplayService.cs" />
+    <Compile Include="src\Infrastructure\Services\WebhookAlertService.cs" />
     <Compile Include="src\Application\Interfaces\IBuscaPrecosService.cs" />
     <Compile Include="src\Application\Services\BuscaPrecosService.cs" />
     <Compile Include="src\CrossCutting\Logger.cs" />
@@ -113,6 +123,7 @@
     <None Include="config.yaml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Include="config.example.yaml" />
     <None Include="packages.config" />
     <None Include="Properties\app.manifest" />
     <None Include="Properties\Settings.settings">
@@ -154,6 +165,7 @@
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
     <Reference Include="System.Windows" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="Microsoft.Extensions.DependencyInjection, Version=8.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">

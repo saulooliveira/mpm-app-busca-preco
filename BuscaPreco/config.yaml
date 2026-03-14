@@ -5,6 +5,12 @@ Terminal:
   Porta: 6500
   ReconnectDelayMs: 5000
 
+Features:
+  CacheTTLMinutes: 10
+  WebhookUrl: ""
+  IdleTimeoutSeconds: 30
+  ScreensaverRotationSeconds: 5
+
 Email:
   SmtpHost: "smtp.seuprovedor.com"
   SmtpPort: 587
