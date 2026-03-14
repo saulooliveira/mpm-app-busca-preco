@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace BuscaPreco
+namespace BuscaPreco.Domain.Entities
 {
     class Configuracoes
     {
@@ -26,8 +26,8 @@ namespace BuscaPreco
         public string Pass;
 
         /*
-         Método: montaParamConfig
-         Função: cria a string para enviar para o terminal (#paramconfig)
+         MÃ©todo: montaParamConfig
+         FunÃ§Ã£o: cria a string para enviar para o terminal (#paramconfig)
           
          Retorno: string para ser enviada
          */
@@ -39,8 +39,8 @@ namespace BuscaPreco
         }
 
         /*
-         Método: montaParamConfig
-         Função: cria a string para enviar para o terminal (#updateconfig)
+         MÃ©todo: montaParamConfig
+         FunÃ§Ã£o: cria a string para enviar para o terminal (#updateconfig)
           
          Retorno: string para ser enviada
          */
@@ -64,8 +64,8 @@ namespace BuscaPreco
         }
 
         /*
-         Método: montaParamConfig
-         Função: cria a string para enviar para o terminal (#reconf02)
+         MÃ©todo: montaParamConfig
+         FunÃ§Ã£o: cria a string para enviar para o terminal (#reconf02)
           
          Retorno: string para ser enviada
          */
@@ -90,8 +90,8 @@ namespace BuscaPreco
             return str;
         }
         /*
-         Método: ProcessaConfig
-         Função: Trata o recebimento das configurações vindas do terminal
+         MÃ©todo: ProcessaConfig
+         FunÃ§Ã£o: Trata o recebimento das configuraÃ§Ãµes vindas do terminal
          
          Entrada: str - comando
          */
@@ -140,8 +140,8 @@ namespace BuscaPreco
         }
 
         /*
-         Método: ProcessaConfig
-         Função: Trata o recebimento das configurações vindas do terminal
+         MÃ©todo: ProcessaConfig
+         FunÃ§Ã£o: Trata o recebimento das configuraÃ§Ãµes vindas do terminal
          
          Entrada: str - comando
          */
@@ -155,8 +155,8 @@ namespace BuscaPreco
         }
 
         /*
-         Método: ProcessaConfig
-         Função: Trata o recebimento das configurações vindas do terminal
+         MÃ©todo: ProcessaConfig
+         FunÃ§Ã£o: Trata o recebimento das configuraÃ§Ãµes vindas do terminal
          
          Entrada: str - comando
          */

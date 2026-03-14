@@ -7,7 +7,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Windows.Forms;
 
-namespace BuscaPreco
+namespace BuscaPreco.Infrastructure.Scrapers
 {
     class Servidor
     {
@@ -15,55 +15,55 @@ namespace BuscaPreco
         public delegate void onReceiveCommand(object sender, string comando);
         public event onReceiveCommand onReceive;
 
-        // Cria o evento para indicar alteraÁıes na lista de terminais
+        // Cria o evento para indicar altera√ß√µes na lista de terminais
         public delegate void onChangeList(ArrayList lista);
         public event onChangeList onChange;
 
-        private Socket server;// Socket principal abre a porta 6500 para conex„o dos terminais
+        private Socket server;// Socket principal abre a porta 6500 para conex√£o dos terminais
         private Socket cliente;// Socket do cliente
         private ArrayList listaTerminais;// Lista com os terminais conectados
-        private Thread threadServidor;//thread que È usada para espera dos terminais
-        private IPEndPoint IPServer;// configuraÁ„o do IP do servidor
+        private Thread threadServidor;//thread que √© usada para espera dos terminais
+        private IPEndPoint IPServer;// configura√ß√£o do IP do servidor
 
         /*
-         MÈtodo: ReceiveCommand
-         FunÁ„o: Trata os eventos dos terminais
+         M√©todo: ReceiveCommand
+         Fun√ß√£o: Trata os eventos dos terminais
          
          Entrada: sender - Indicando o terminal que enviou o evento
                   str - string com a mensagem do terminal
          */
         private void ReceiveCommand(object sender, string str) {
-            if (onReceive != null) // verifica se h· alguma funÁ„o para tratar o evento
+            if (onReceive != null) // verifica se h√° alguma fun√ß√£o para tratar o evento
                 onReceive(sender, str); // dispara o evento
         }
 
         /*
-         MÈtodo: RemoveTerminal
-         FunÁ„o: Remove um terminal (desconectado) da lista
+         M√©todo: RemoveTerminal
+         Fun√ß√£o: Remove um terminal (desconectado) da lista
          
-         Entrada: sender - o terminal que ser· removido
+         Entrada: sender - o terminal que ser√° removido
          */
         private void RemoveTerminal(object sender) {
             listaTerminais.Remove((Terminal)sender); // Remove o terminal
-            if (onChange != null) // verifica se h· alguma funÁ„o para o tratamento do evento
+            if (onChange != null) // verifica se h√° alguma fun√ß√£o para o tratamento do evento
                 onChange(listaTerminais); // dispara o evento
         }
 
         /*
-         MÈtodo: AddTerminal
-         FunÁ„o: Adiciona um terminal na lista
+         M√©todo: AddTerminal
+         Fun√ß√£o: Adiciona um terminal na lista
          
          Entrada: term - O terminal a ser adicionado na lista
          */
         private void AddTerminal(Terminal term) {
             listaTerminais.Add(term);//adiciona o terminal
-            if (onChange != null)// verifica se existe a funÁ„o para tratar o evento
+            if (onChange != null)// verifica se existe a fun√ß√£o para tratar o evento
                 onChange(listaTerminais);// dispara o evento
         }
 
         /*
-         MÈtodo: Servidor
-         FunÁ„o: Construtor da classe Servidor
+         M√©todo: Servidor
+         Fun√ß√£o: Construtor da classe Servidor
          */
         public Servidor() {
             listaTerminais = new ArrayList(); // cria o objeto da lista
@@ -72,12 +72,12 @@ namespace BuscaPreco
         }
 
         /*
-        MÈtodo: startServer
-        FunÁ„o: FunÁ„o que inicia o servidor
+        M√©todo: startServer
+        Fun√ß√£o: Fun√ß√£o que inicia o servidor
         */
         public void startServer()
         {
-            threadServidor = new Thread(ProcessaServidor);// cria uma thread para esperar conexıes informando qual funÁ„o ser· executada
+            threadServidor = new Thread(ProcessaServidor);// cria uma thread para esperar conex√µes informando qual fun√ß√£o ser√° executada
             threadServidor.Start();// inicia a thread
         }
 
@@ -89,24 +89,24 @@ namespace BuscaPreco
         }
 
         /*
-         MÈtodo: ProcessaServidor
-         FunÁ„o: FunÁ„o executada em uma thread para esperar por conexıes dos terminais
+         M√©todo: ProcessaServidor
+         Fun√ß√£o: Fun√ß√£o executada em uma thread para esperar por conex√µes dos terminais
          */
         private void ProcessaServidor(){
-            Terminal terminal; // cria uma inst‚ncia para a classe Terminal
+            Terminal terminal; // cria uma inst√¢ncia para a classe Terminal
             server.Bind(IPServer); // Configura a porta do servidor
-            server.Listen(5); // abre a porta para conexıes
+            server.Listen(5); // abre a porta para conex√µes
 
-            // loop infinito que espera as conexıes dos terminais
+            // loop infinito que espera as conex√µes dos terminais
             while (true){
-                cliente = server.Accept();// aceita a conex„o do terminal e retorna o socket para comunicaÁ„o
-                if (cliente.Connected) // se houve a correta conex„o do terminal
+                cliente = server.Accept();// aceita a conex√£o do terminal e retorna o socket para comunica√ß√£o
+                if (cliente.Connected) // se houve a correta conex√£o do terminal
                 {
                     terminal = new Terminal(cliente);// cria o objeto terminal e passa o socket para o objeto
-                    terminal.onReceive += new Terminal.onReceiveCommand(ReceiveCommand);//configura a funÁ„o para a qual o terminal ir· disparar o evento de comandos
-                    terminal.Desconectar += new Terminal.onDisconectTerminal(RemoveTerminal);//configura a funÁ„o para a qual o terminal ir· disparar o evento de desconex„o
-                    Thread.Sleep(2000); // espera 2 segundos para o terminal comeÁar a comuniocaÁ„o
-                    AddTerminal(terminal);// adiciona o terminal ‡ lista
+                    terminal.onReceive += new Terminal.onReceiveCommand(ReceiveCommand);//configura a fun√ß√£o para a qual o terminal ir√° disparar o evento de comandos
+                    terminal.Desconectar += new Terminal.onDisconectTerminal(RemoveTerminal);//configura a fun√ß√£o para a qual o terminal ir√° disparar o evento de desconex√£o
+                    Thread.Sleep(2000); // espera 2 segundos para o terminal come√ßar a comunioca√ß√£o
+                    AddTerminal(terminal);// adiciona o terminal √† lista
                 }
             }
         }

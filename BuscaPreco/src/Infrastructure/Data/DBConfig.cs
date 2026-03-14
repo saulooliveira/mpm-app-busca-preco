@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization;
 
-namespace BuscaPreco
+namespace BuscaPreco.Infrastructure.Data
 {
     public  class AppConfig
     {

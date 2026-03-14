@@ -1,7 +1,9 @@
-﻿namespace BuscaPreco
+﻿namespace BuscaPreco.Infrastructure.Data
 {
 
     using dBASE.NET;
+    using BuscaPreco.CrossCutting;
+    using BuscaPreco.Domain.Entities;
     using System;
     using System.Collections.Generic;
     using System.IO;
