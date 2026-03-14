@@ -1,0 +1,125 @@
+name: BuscaPreco CI/CD
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'release/**'
+  pull_request:
+    branches:
+      - develop
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  build_test:
+    name: Build and Test (.NET Framework 4.8)
+    runs-on: windows-latest
+    if: |
+      startsWith(github.ref, 'refs/heads/feature/') ||
+      startsWith(github.ref, 'refs/heads/release/') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'develop')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore packages
+        run: nuget restore BuscaPreco.sln
+
+      - name: Build solution
+        run: msbuild BuscaPreco.sln /t:Build /p:Configuration=Release /p:Platform="Any CPU"
+
+      - name: Run tests (placeholder for .NET Framework test projects)
+        shell: pwsh
+        run: |
+          Write-Host "No test project included in solution yet."
+          Write-Host "Step kept to enforce pipeline stage for future tests."
+
+  security_scan_and_release_pr:
+    name: Security Scan + Open PR develop -> release/*
+    runs-on: windows-latest
+    needs: build_test
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'develop' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Simulated security scan
+        run: echo "[SECURITY SCAN] Running SAST/dependency checks (simulado)."
+
+      - name: Prepare release branch name from date
+        id: release_branch
+        shell: pwsh
+        run: |
+          $name = "release/" + (Get-Date -Format "yyyy.MM.dd")
+          "name=$name" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Ensure GitHub CLI auth
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh auth status
+
+      - name: Create release branch (if not exists)
+        shell: pwsh
+        run: |
+          $branch = "${{ steps.release_branch.outputs.name }}"
+          git fetch origin --prune
+          $remoteBranch = git ls-remote --heads origin $branch
+          if (-not $remoteBranch) {
+            git checkout -b $branch origin/develop
+            git push origin $branch
+          }
+
+      - name: Create PR develop -> release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $branch = "${{ steps.release_branch.outputs.name }}"
+          gh pr create --base $branch --head develop --title "chore(release): promote develop to $branch" --body "PR automática criada após merge em develop."
+
+  tag_release:
+    name: Auto tag on release/* push
+    runs-on: windows-latest
+    needs: build_test
+    if: startsWith(github.ref, 'refs/heads/release/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create and push tag from release branch
+        shell: pwsh
+        run: |
+          $branch = "${{ github.ref_name }}"   # release/1.0.3 or release/2026.03.14
+          $version = $branch.Substring(8)
+          if ($version -match '^\d+\.\d+\.\d+$') {
+            $tag = "v$version"
+          }
+          else {
+            $tag = "v1.0.$version"
+          }
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          $exists = git tag -l $tag
+          if (-not $exists) {
+            git tag $tag
+            git push origin $tag
+          }
+          else {
+            Write-Host "Tag $tag já existe."
+          }
+
+# Importante:
+# - master não dispara automações neste workflow por regra de processo:
+#   merge em master representa apenas promoção final para produção.
