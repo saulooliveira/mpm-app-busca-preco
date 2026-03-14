@@ -5,6 +5,7 @@ using System.IO;
 using System.Windows.Forms;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.CrossCutting;
+using BuscaPreco.Domain.Entities;
 using BuscaPreco.Infrastructure.Repositories;
 using BuscaPreco.Infrastructure.Scrapers;
 
