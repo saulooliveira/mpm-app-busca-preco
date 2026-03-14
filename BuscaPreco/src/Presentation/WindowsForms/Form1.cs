@@ -14,8 +14,7 @@ namespace BuscaPreco.Presentation.WindowsForms
     {
         private readonly Logger logger;
         private readonly IBuscaPrecosService buscaPrecosService;
-
-        Servidor servidor; //cria uma instancia do servidor
+        private readonly Servidor servidor; //cria uma instancia do servidor
 
         // listas para o cadastro dos terminais conectados e selecionado
         ArrayList terminaisConectados;
@@ -29,10 +28,11 @@ namespace BuscaPreco.Presentation.WindowsForms
         Método: Form1
         Função: Construtor da classe
         */
-        public Form1(Logger logger, IBuscaPrecosService buscaPrecosService)
+        public Form1(Logger logger, IBuscaPrecosService buscaPrecosService, Servidor servidor)
         {
             this.logger = logger;
             this.buscaPrecosService = buscaPrecosService;
+            this.servidor = servidor;
 
             this.logger.Info("Iniciando App...");
             InitializeComponent();// inicializa o formulario
@@ -62,7 +62,6 @@ namespace BuscaPreco.Presentation.WindowsForms
             {
                 ItensSelecionados = new ArrayList(); // cria a lista de terminais conectados
                 Habilita_Configuracoes(false);// desabilita a ediçao das configuraçoes
-                servidor = new Servidor(); // cria o objeto servidor
                 servidor.onReceive += new Servidor.onReceiveCommand(onReceiveData); //cadastra o evendo de recebimento de dados
                 servidor.onChange += new Servidor.onChangeList(onChangeList); // cadastra o evento de lista alterada
                 servidor.startServer(); // inicia o servidor
