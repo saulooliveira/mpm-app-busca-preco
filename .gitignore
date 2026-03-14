@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# BuscaPreco local configuration (contains secrets)
+config.yaml
+**/config.yaml
+!config.example.yaml
+!**/config.example.yaml
