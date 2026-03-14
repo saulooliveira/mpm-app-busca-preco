@@ -1,22 +1,29 @@
+using Serilog;
+
 namespace BuscaPreco.CrossCutting
 {
-    using Serilog;
-
     public class Logger
     {
+        private readonly global::Serilog.ILogger _logger;
+
+        public Logger()
+        {
+            _logger = global::Serilog.Log.Logger;
+        }
+
         public void Info(string messageTemplate, params object[] propertyValues)
         {
-            Log.Information(messageTemplate, propertyValues);
+            _logger.Information(messageTemplate, propertyValues);
         }
 
         public void Warning(string messageTemplate, params object[] propertyValues)
         {
-            Log.Warning(messageTemplate, propertyValues);
+            _logger.Warning(messageTemplate, propertyValues);
         }
 
         public void Error(string messageTemplate, params object[] propertyValues)
         {
-            Log.Error(messageTemplate, propertyValues);
+            _logger.Error(messageTemplate, propertyValues);
         }
     }
 }

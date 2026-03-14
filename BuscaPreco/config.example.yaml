@@ -1,10 +1,19 @@
 DbfConfig:
+  DbfFilePath: "C:/caminho/para/CADITE.DBF"
   DbfFilePath: "C:/Users/Cadastro/Documents/Cadger/CADITE.DBF"
 
 Terminal:
   Porta: 6500
   ReconnectDelayMs: 5000
 
+Email:
+  SmtpHost: "smtp.exemplo.com"
+  SmtpPort: 587
+  EnableSsl: true
+  Username: "usuario@dominio.com"
+  Password: "altere-aqui"
+  Remetente: "buscapreco@empresa.com"
+  Destinatario: "gestor@empresa.com"
 Features:
   CacheTTLMinutes: 10
   WebhookUrl: "https://hooks.exemplo.com/produto-nao-cadastrado"

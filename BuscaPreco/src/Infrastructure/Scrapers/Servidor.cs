@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 
 namespace BuscaPreco.Infrastructure.Scrapers
 {
-    class Servidor
+    public class Servidor
     {
         public delegate void onReceiveCommand(object sender, string comando);
         public event onReceiveCommand onReceive;
