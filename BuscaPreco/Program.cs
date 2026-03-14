@@ -8,6 +8,7 @@ using BuscaPreco.Domain.Interfaces;
 using BuscaPreco.Infrastructure.Data;
 using BuscaPreco.Infrastructure.Repositories;
 using BuscaPreco.Presentation.WindowsForms;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BuscaPreco
 {
@@ -19,16 +20,38 @@ namespace BuscaPreco
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            var logger = new Logger();
+            using (var serviceProvider = ConfigureServices())
+            {
+                var trayContext = serviceProvider.GetRequiredService<TrayApplicationContext>();
+                Application.Run(trayContext);
+            }
+        }
+
+        private static ServiceProvider ConfigureServices()
+        {
+            var services = new ServiceCollection();
+
             var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.yaml");
-            var configReader = new ConfigReader(configPath);
-            var config = configReader.LoadConfig();
 
-            var dbfDatabase = new DbfDatabase(config.DbfFilePath, logger);
-            IProdutoRepository produtoRepository = new ProdutoRepository(dbfDatabase);
-            IBuscaPrecosService buscaPrecosService = new BuscaPrecosService(produtoRepository);
+            services.AddSingleton(new ConfigReader(configPath));
+            services.AddSingleton(sp => sp.GetRequiredService<ConfigReader>().LoadConfig());
+            services.AddSingleton<Logger>();
 
-            Application.Run(new Form1(logger, buscaPrecosService));
+            services.AddSingleton<DbfDatabase>(sp =>
+            {
+                var dbfConfig = sp.GetRequiredService<DbfConfig>();
+                var logger = sp.GetRequiredService<Logger>();
+                return new DbfDatabase(dbfConfig.DbfFilePath, logger);
+            });
+
+            services.AddSingleton<IProdutoRepository, ProdutoRepository>();
+            services.AddSingleton<IBuscaPrecosService, BuscaPrecosService>();
+
+            services.AddTransient<Form1>();
+            services.AddSingleton<Func<Form1>>(sp => () => sp.GetRequiredService<Form1>());
+            services.AddSingleton<TrayApplicationContext>();
+
+            return services.BuildServiceProvider();
         }
     }
 }
