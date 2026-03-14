@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Windows.Forms;
 using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.Application.Services;
@@ -24,14 +23,14 @@ namespace BuscaPreco
         [STAThread]
         static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
+            System.Windows.Forms.Application.EnableVisualStyles();
+            System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
 
             var host = CreateHost();
             host.Start();
 
             var trayContext = host.Services.GetRequiredService<TrayApplicationContext>();
-            Application.Run(trayContext);
+            System.Windows.Forms.Application.Run(trayContext);
 
             host.StopAsync().GetAwaiter().GetResult();
             host.Dispose();
