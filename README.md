@@ -1,112 +1,101 @@
 # BuscaPreco
 
-Aplicação desktop em **C#/.NET** para consulta de preços de produtos a partir de base DBF e integração com terminais de consulta. O projeto foi reorganizado para uma estrutura orientada a **Clean Architecture**, separando responsabilidades de domínio, aplicação, infraestrutura e componentes transversais.
+O **BuscaPreco** é um backend local para supermercados, executado em **Windows (System Tray)**, que integra o terminal físico **Gertec Busca Preço G2 E** com a base local de produtos em **.dbf**. O objetivo é permitir que o cliente consulte preço no totem e receba resposta imediata via rede TCP/IP, com rastreabilidade por logs.
 
-## Arquitetura
+## Arquitetura e estrutura do projeto
+
+A solução está organizada em camadas seguindo princípios de **Clean Architecture**.
 
 ```text
 BuscaPreco/
-├── BuscaPreco.csproj
 ├── src/
-│   ├── Domain/
+│   ├── Domain/                      # Núcleo de negócio (entidades e contratos de domínio)
 │   │   ├── Entities/
-│   │   │   ├── Produto.cs
-│   │   │   └── Configuracoes.cs
 │   │   └── Interfaces/
-│   │       └── IProdutoRepository.cs
-│   ├── Application/
-│   │   ├── Services/
-│   │   │   └── BuscaPrecosService.cs
-│   │   └── Interfaces/
-│   │       └── IBuscaPrecosService.cs
-│   ├── Infrastructure/
+│   ├── Application/                 # Casos de uso, orquestração e contratos de aplicação
+│   │   ├── Configurations/
+│   │   ├── Interfaces/
+│   │   └── Services/
+│   ├── Infrastructure/              # Implementações técnicas (DBF, socket, e-mail, adapters)
 │   │   ├── Data/
-│   │   │   ├── DBConfig.cs
-│   │   │   └── DbfConnection.cs
-│   │   ├── Repositories/
-│   │   │   ├── ProdutoRepository.cs
-│   │   │   └── Exportador.cs
 │   │   ├── HttpClients/
-│   │   │   └── PrecosHttpClient.cs
-│   │   └── Scrapers/
-│   │       ├── Servidor.cs
-│   │       └── Terminal.cs
-│   ├── CrossCutting/
-│   │   ├── Logger.cs
-│   │   └── Validators.cs
-│   └── Presentation/
-│       └── WindowsForms/
-│           ├── Form1.cs
-│           ├── Form1.Designer.cs
-│           └── Form1.resx
+│   │   ├── Repositories/
+│   │   ├── Scrapers/
+│   │   └── Services/
+│   ├── Presentation/                # Camada de interface (WinForms + System Tray)
+│   │   └── WindowsForms/
+│   └── CrossCutting/                # Utilitários transversais (logs, validações)
 ├── Tests/
-│   ├── UnitTests/
-│   └── IntegrationTests/
-├── appsettings.json
-└── Program.cs
+│   ├── UnitTests/                   # Espaço para testes unitários
+│   └── IntegrationTests/            # Espaço para testes de integração
+├── BuscaPreco.csproj                # Projeto WinForms .NET Framework 4.8
+├── config.example.yaml              # Template versionável de configuração
+└── config.yaml                      # Configuração local (ignorada por segurança)
 ```
 
-### Propósito das camadas
+### Responsabilidade por camada
 
-- **Domain**: regras de negócio centrais e contratos (sem dependência de infraestrutura).
-- **Application**: orquestração de casos de uso (serviços de aplicação que dependem de contratos do Domain).
-- **Infrastructure**: implementação técnica (DBF, repositórios, comunicação com terminal, integrações externas).
-- **CrossCutting**: utilitários compartilhados (log, validações, helpers).
-- **Presentation**: interface WinForms e interação com usuário.
+- **Domain**: representa regras de negócio puras e contratos centrais, sem dependência de tecnologia.
+- **Application**: implementa os fluxos de consulta de preço e integra os contratos de domínio com a infraestrutura.
+- **Infrastructure**: concentra acesso técnico (socket TCP/IP, leitura DBF com dBASE.NET, serviços auxiliares).
+- **Presentation**: inicialização da aplicação desktop, contexto de tray e interação com operador.
+- **CrossCutting**: componentes utilitários reutilizados entre camadas.
 
-## Fluxo de busca de preço
+## Fluxo de consulta de preço (Mermaid)
 
 ```mermaid
-flowchart TD
-    A[Program.cs / Composition Root] --> B[Form1 - Presentation]
-    B --> C[IBuscaPrecosService - Application]
-    C --> D[IProdutoRepository - Domain Contract]
-    D --> E[ProdutoRepository - Infrastructure]
-    E --> F[DbfDatabase - Infrastructure/Data]
-    F --> G[(Arquivo DBF)]
-    C --> H[Produto - Domain Entity]
-    H --> B
-    B --> I[Terminal/Servidor - Infrastructure/Scrapers]
+sequenceDiagram
+    autonumber
+    participant T as Terminal Gertec (Busca Preço G2 E)
+    participant S as Infrastructure.SocketListener (Servidor)
+    participant A as Application.IBuscaPrecosService
+    participant R as Infrastructure.ProdutoRepository (.dbf)
+    participant L as Log (Serilog)
+
+    T->>S: Envia código de barras via TCP/IP
+    S->>A: Solicita consulta por código
+    A->>R: BuscarProduto(codigoBarras)
+    R-->>A: Produto + preço (ou não cadastrado)
+    A->>L: Registrar consulta (código, status, preço, data/hora)
+    A-->>S: Retorna payload de resposta
+    S-->>T: Envia preço ao terminal
 ```
 
-## Setup e instalação
+## Setup local
 
-> Pré-requisitos: .NET SDK/Build Tools compatível com o framework do projeto e dependências restauráveis pelo NuGet.
+### 1) Pré-requisitos
 
-### 1) Restaurar pacotes
+- Windows com **.NET Framework 4.8 Developer Pack** instalado.
+- **Visual Studio 2022** (ou Build Tools) com MSBuild.
+- **NuGet CLI** disponível no PATH.
+
+### 2) Restaurar pacotes
 
 ```bash
 nuget restore BuscaPreco.sln
 ```
 
-ou
+### 3) Configuração de ambiente
+
+1. Copie o arquivo de exemplo:
 
 ```bash
-dotnet restore BuscaPreco.sln
+copy BuscaPreco\config.example.yaml BuscaPreco\config.yaml
 ```
 
-### 2) Banco/migrations (quando aplicável)
+2. Ajuste os campos no `config.yaml` para seu ambiente local:
+   - caminho do arquivo DBF;
+   - porta do terminal;
+   - SMTP e credenciais para relatório diário;
+   - parâmetros de log.
 
-Atualmente o projeto usa DBF (sem EF Core em produção). Caso evolua para EF Core:
+### 4) Compilar
 
 ```bash
-dotnet ef database update
+msbuild BuscaPreco.sln /t:Build /p:Configuration=Release /p:Platform="Any CPU"
 ```
 
-### 3) Executar a aplicação
+### 5) Executar
 
-Com Visual Studio (recomendado para WinForms) ou via CLI:
-
-```bash
-dotnet run --project BuscaPreco/BuscaPreco.csproj
-```
-
-## Script de referência para reorganização
-
-Há um script utilitário em:
-
-```text
-scripts/reorganizar-clean-architecture.sh
-```
-
-Ele documenta a sequência de criação de diretórios e movimentação de arquivos para a estrutura limpa.
+- Execute o binário gerado em `BuscaPreco\bin\Release\`.
+- A aplicação iniciará em **System Tray** e ficará escutando a porta configurada.

@@ -1,14 +1,19 @@
 using System;
-using System.IO;
-using System.Windows.Forms;
+using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.Application.Services;
 using BuscaPreco.CrossCutting;
 using BuscaPreco.Domain.Interfaces;
 using BuscaPreco.Infrastructure.Data;
 using BuscaPreco.Infrastructure.Repositories;
+using BuscaPreco.Infrastructure.Scrapers;
+using BuscaPreco.Infrastructure.Services;
 using BuscaPreco.Presentation.WindowsForms;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using Serilog;
 
 namespace BuscaPreco
 {
@@ -17,41 +22,73 @@ namespace BuscaPreco
         [STAThread]
         static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
+            System.Windows.Forms.Application.EnableVisualStyles();
+            System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
 
-            using (var serviceProvider = ConfigureServices())
-            {
-                var trayContext = serviceProvider.GetRequiredService<TrayApplicationContext>();
-                Application.Run(trayContext);
-            }
+            var host = CreateHost();
+            host.Start();
+
+            var trayContext = host.Services.GetRequiredService<TrayApplicationContext>();
+            System.Windows.Forms.Application.Run(trayContext);
+
+            host.StopAsync().GetAwaiter().GetResult();
+            host.Dispose();
+            Log.CloseAndFlush();
         }
 
-        private static ServiceProvider ConfigureServices()
+        private static IHost CreateHost()
         {
-            var services = new ServiceCollection();
+            var basePath = AppDomain.CurrentDomain.BaseDirectory;
 
-            var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.yaml");
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(basePath)
+                .AddYamlFile("config.yaml", optional: false, reloadOnChange: true)
+                .Build();
 
-            services.AddSingleton(new ConfigReader(configPath));
-            services.AddSingleton(sp => sp.GetRequiredService<ConfigReader>().LoadConfig());
-            services.AddSingleton<Logger>();
+            Log.Logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(configuration)
+                .CreateLogger();
 
-            services.AddSingleton<DbfDatabase>(sp =>
-            {
-                var dbfConfig = sp.GetRequiredService<DbfConfig>();
-                var logger = sp.GetRequiredService<Logger>();
-                return new DbfDatabase(dbfConfig.DbfFilePath, logger);
-            });
+            return Host.CreateDefaultBuilder()
+                .ConfigureAppConfiguration((_, config) =>
+                {
+                    config.Sources.Clear();
+                    config.SetBasePath(basePath);
+                    config.AddConfiguration(configuration);
+                })
+                .ConfigureServices((context, services) =>
+                {
+                    services.Configure<DbfConfig>(context.Configuration.GetSection("DbfConfig"));
+                    services.Configure<TerminalConfig>(context.Configuration.GetSection("Terminal"));
+                    services.Configure<EmailConfig>(context.Configuration.GetSection("Email"));
+                    services.Configure<FeatureConfig>(context.Configuration.GetSection("Features"));
 
-            services.AddSingleton<IProdutoRepository, ProdutoRepository>();
-            services.AddSingleton<IBuscaPrecosService, BuscaPrecosService>();
+                    services.AddSingleton(sp => sp.GetRequiredService<IOptions<DbfConfig>>().Value);
+                    services.AddSingleton<Logger>();
+                    services.AddSingleton<Servidor>();
 
-            services.AddTransient<Form1>();
-            services.AddSingleton<Func<Form1>>(sp => () => sp.GetRequiredService<Form1>());
-            services.AddSingleton<TrayApplicationContext>();
+                    services.AddSingleton<DbfDatabase>(sp =>
+                    {
+                        var dbfConfig = sp.GetRequiredService<DbfConfig>();
+                        var logger = sp.GetRequiredService<Logger>();
+                        return new DbfDatabase(dbfConfig.DbfFilePath, logger);
+                    });
 
-            return services.BuildServiceProvider();
+                    services.AddSingleton<IProdutoRepository, ProdutoRepository>();
+                    services.AddSingleton<IProdutoCacheTracker, ProdutoCacheTracker>();
+                    services.AddSingleton<ITerminalActivityMonitor, TerminalActivityMonitor>();
+                    services.AddSingleton<IBuscaPrecosService, BuscaPrecosService>();
+                    services.AddSingleton<IAlertService, WebhookAlertService>();
+                    services.AddSingleton<ITerminalDisplayService, TerminalDisplayService>();
+                    services.AddSingleton<IEmailService, EmailService>();
+                    services.AddHostedService<RelatorioDiarioBackgroundService>();
+                    services.AddHostedService<ScreensaverPromocionalBackgroundService>();
+
+                    services.AddTransient<Form1>();
+                    services.AddSingleton<Func<Form1>>(sp => () => sp.GetRequiredService<Form1>());
+                    services.AddSingleton<TrayApplicationContext>();
+                })
+                .Build();
         }
     }
 }
