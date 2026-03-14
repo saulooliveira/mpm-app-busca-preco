@@ -21,6 +21,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
         private Socket server;
         private Socket cliente;
         private readonly ArrayList listaTerminais;
+        private readonly object listaTerminaisLock = new object();
         private Task serverTask;
         private CancellationTokenSource cancellationTokenSource;
         private readonly IPEndPoint ipServer;
@@ -34,13 +35,21 @@ namespace BuscaPreco.Infrastructure.Scrapers
 
         private void RemoveTerminal(object sender)
         {
-            listaTerminais.Remove((Terminal)sender);
+            lock (listaTerminaisLock)
+            {
+                listaTerminais.Remove((Terminal)sender);
+            }
+
             onChange?.Invoke(listaTerminais);
         }
 
         private void AddTerminal(Terminal term)
         {
-            listaTerminais.Add(term);
+            lock (listaTerminaisLock)
+            {
+                listaTerminais.Add(term);
+            }
+
             onChange?.Invoke(listaTerminais);
         }
 
@@ -50,6 +59,25 @@ namespace BuscaPreco.Infrastructure.Scrapers
             terminalConfig = terminalOptions.Value;
             listaTerminais = new ArrayList();
             ipServer = new IPEndPoint(IPAddress.Any, terminalConfig.Porta);
+        }
+
+
+        public void BroadcastProdutoPromocional(string nome, string preco)
+        {
+            Terminal[] terminaisSnapshot;
+            lock (listaTerminaisLock)
+            {
+                terminaisSnapshot = new Terminal[listaTerminais.Count];
+                for (var i = 0; i < listaTerminais.Count; i++)
+                {
+                    terminaisSnapshot[i] = (Terminal)listaTerminais[i];
+                }
+            }
+
+            foreach (var terminal in terminaisSnapshot)
+            {
+                terminal.SendProcPrice(nome, preco);
+            }
         }
 
         public void startServer()
