@@ -77,9 +77,14 @@ namespace BuscaPreco
                     });
 
                     services.AddSingleton<IProdutoRepository, ProdutoRepository>();
+                    services.AddSingleton<IProdutoCacheTracker, ProdutoCacheTracker>();
+                    services.AddSingleton<ITerminalActivityMonitor, TerminalActivityMonitor>();
                     services.AddSingleton<IBuscaPrecosService, BuscaPrecosService>();
+                    services.AddSingleton<IAlertService, WebhookAlertService>();
+                    services.AddSingleton<ITerminalDisplayService, TerminalDisplayService>();
                     services.AddSingleton<IEmailService, EmailService>();
                     services.AddHostedService<RelatorioDiarioBackgroundService>();
+                    services.AddHostedService<ScreensaverPromocionalBackgroundService>();
 
                     services.AddTransient<Form1>();
                     services.AddSingleton<Func<Form1>>(sp => () => sp.GetRequiredService<Form1>());
