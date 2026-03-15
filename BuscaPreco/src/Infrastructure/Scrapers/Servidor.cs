@@ -27,6 +27,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
         private readonly IPEndPoint ipServer;
         private readonly TerminalConfig terminalConfig;
         private readonly Logger logger;
+        private TaskCompletionSource<bool> serverReadyTcs;
 
         private void ReceiveCommand(object sender, string str)
         {
@@ -82,8 +83,36 @@ namespace BuscaPreco.Infrastructure.Scrapers
 
         public void startServer()
         {
+            Start();
+        }
+
+        public void Start()
+        {
+            if (serverTask != null && !serverTask.IsCompleted)
+            {
+                return;
+            }
+
             cancellationTokenSource = new CancellationTokenSource();
+            serverReadyTcs = new TaskCompletionSource<bool>();
             serverTask = Task.Run(() => ProcessaServidorAsync(cancellationTokenSource.Token));
+        }
+
+        public async Task StartAsync()
+        {
+            if (serverTask != null && !serverTask.IsCompleted)
+            {
+                if (serverReadyTcs != null)
+                {
+                    await serverReadyTcs.Task;
+                }
+                return;
+            }
+
+            cancellationTokenSource = new CancellationTokenSource();
+            serverReadyTcs = new TaskCompletionSource<bool>();
+            serverTask = Task.Run(() => ProcessaServidorAsync(cancellationTokenSource.Token));
+            await serverReadyTcs.Task;
         }
 
         [Obsolete]
@@ -91,6 +120,17 @@ namespace BuscaPreco.Infrastructure.Scrapers
         {
             cancellationTokenSource?.Cancel();
             server?.Close();
+        }
+
+        // Non-obsolete wrapper method to stop the server
+        public void Stop()
+        {
+            cancellationTokenSource?.Cancel();
+            try
+            {
+                server?.Close();
+            }
+            catch { }
         }
 
         private async Task ProcessaServidorAsync(CancellationToken cancellationToken)
@@ -103,6 +143,9 @@ namespace BuscaPreco.Infrastructure.Scrapers
                     server.Bind(ipServer);
                     server.Listen(5);
                     logger.Info("Servidor do terminal iniciado na porta {Porta}", terminalConfig.Porta);
+                    
+                    // Signal that the server is ready
+                    serverReadyTcs?.TrySetResult(true);
 
                     while (!cancellationToken.IsCancellationRequested)
                     {
@@ -112,7 +155,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
                             var terminal = new Terminal(cliente);
                             terminal.onReceive += new Terminal.onReceiveCommand(ReceiveCommand);
                             terminal.Desconectar += new Terminal.onDisconectTerminal(RemoveTerminal);
-                            await Task.Delay(2000, cancellationToken);
+                            await Task.Delay(100, cancellationToken);
                             AddTerminal(terminal);
                         }
                     }

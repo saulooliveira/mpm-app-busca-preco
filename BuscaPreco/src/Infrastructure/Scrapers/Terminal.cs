@@ -132,8 +132,24 @@ namespace BuscaPreco.Infrastructure.Scrapers
                   price - preço do produto
          */
         public void SendProcPrice(string desc, string price) {
-            // monta a string e envia para o terminal
-            EnviaParaTerminal("#" + desc + "|" + price);
+            try
+            {
+                if (!sock.Connected)
+                {
+                    System.Diagnostics.Debug.WriteLine($"SendProcPrice: Socket not connected!");
+                    return;
+                }
+                // monta a string e envia para o terminal
+                string mensaje = "#" + desc + "|" + price;
+                System.Diagnostics.Debug.WriteLine($"SendProcPrice: Sending '{mensaje}'");
+                EnviaParaTerminal(mensaje);
+                System.Diagnostics.Debug.WriteLine($"SendProcPrice: Data sent successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SendProcPrice Error: {ex.GetType().Name}: {ex.Message}");
+                throw;
+            }
         }
 
         /*
@@ -154,7 +170,17 @@ namespace BuscaPreco.Infrastructure.Scrapers
          Entrada: comando - string contendo o comando
          */
         private void EnviaParaTerminal(string comando) {
-            sock.Send(ConverteStringToBytes(comando));
+            try
+            {
+                byte[] dados = ConverteStringToBytes(comando);
+                sock.Send(dados);
+                System.Diagnostics.Debug.WriteLine($"Data sent successfully: {comando}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending data: {ex.Message}");
+                throw;
+            }
         }
 
         /*
@@ -173,16 +199,20 @@ namespace BuscaPreco.Infrastructure.Scrapers
             listaSock.Add(sock); // adiciona o socket à lista
             try
             {
+                System.Diagnostics.Debug.WriteLine($"RecebeDoTerminal: Starting receive, socket connected: {sock.Connected}");
                 Socket.Select(listaSock, null, null, 5 * 1000000); // impõe um timeout para a leitura
                 if (listaSock.Count == 1)// se o terminal enviou algo
                 {
-                    sock.Receive(dados);// faz a leitura
-                    comando = new System.Text.ASCIIEncoding().GetString(dados);// converte os bytes para texto
+                    int bytesRecebidos = sock.Receive(dados);// faz a leitura
+                    comando = new System.Text.ASCIIEncoding().GetString(dados, 0, bytesRecebidos);// converte apenas os bytes recebidos para texto
+                    System.Diagnostics.Debug.WriteLine($"RecebeDoTerminal: Received {bytesRecebidos} bytes: {comando}");
                     return 0; //  retorna OK
                 }
+                System.Diagnostics.Debug.WriteLine($"RecebeDoTerminal: Timeout - no data available");
                 return 1;// caso ocorreu o timeout retorna 1
             }
-            catch{
+            catch(Exception ex){
+                System.Diagnostics.Debug.WriteLine($"RecebeDoTerminal: Exception: {ex.Message}");
                 return -1;// em caso de erro (Try-catch) retorna -1
             }
         }
@@ -192,63 +222,97 @@ namespace BuscaPreco.Infrastructure.Scrapers
          Função: Função entra em loop para tratar a conexão com o terminal
          */
         private void ProcessaTerminal(){
-            string paraServidor; // String que recebe os comandos
-            int controleConectado;// Recebe o estado da conexão
-            int contLive = 0;// controla se haverá desconexão forçada do terminal (terminal não responde)
+            try
+            {
+                // Small delay to ensure socket is fully established
+                Thread.Sleep(50);
+                
+                string paraServidor; // String que recebe os comandos
+                int controleConectado;// Recebe o estado da conexão
+                int contLive = 0;// controla se haverá desconexão forçada do terminal (terminal não responde)
 
-            paraServidor = "init"; //inicia a string
-            EnviaParaTerminal("#ok");// envia a string "#OK" para o terminal
-            RecebeDoTerminal(ref paraServidor);// recebe a reposta do terminal
+                paraServidor = "init"; //inicia a string
+                EnviaParaTerminal("#ok");// envia a string "#OK" para o terminal
+                RecebeDoTerminal(ref paraServidor);// recebe a reposta do terminal
+                System.Diagnostics.Debug.WriteLine($"Terminal init response: {paraServidor}");
 
-            IP = (IPEndPoint)sock.RemoteEndPoint;// configura o IP da conexão
-            // recolhe o tipo e a versão do terminal
-            tipo = paraServidor.Substring(1, paraServidor.LastIndexOf('|') - 1);
-            versao = paraServidor.Substring(paraServidor.LastIndexOf('|') + 1);
+                IP = (IPEndPoint)sock.RemoteEndPoint;// configura o IP da conexão
+                // recolhe o tipo e a versão do terminal
+                tipo = paraServidor.Substring(1, paraServidor.LastIndexOf('|') - 1);
+                versao = paraServidor.Substring(paraServidor.LastIndexOf('|') + 1);
+                System.Diagnostics.Debug.WriteLine($"Terminal type: {tipo}, version: {versao}");
 
-            // pede a configuração do terminal
-            EnviaParaTerminal("#config02?");
-            Thread.Sleep(500);
-            RecebeDoTerminal(ref paraServidor);
-            config.ProcessaConfig(paraServidor);
+                // pede a configuração do terminal
+                EnviaParaTerminal("#config02?");
+                Thread.Sleep(500);
+                RecebeDoTerminal(ref paraServidor);
+                System.Diagnostics.Debug.WriteLine($"Config response: {paraServidor}");
+                config.ProcessaConfig(paraServidor);
 
-            // pede os parametros do terminal
-            EnviaParaTerminal("#paramconfig?");
-            Thread.Sleep(500);
-            RecebeDoTerminal(ref paraServidor);
-            config.ProcessaParam(paraServidor);
+                // pede os parametros do terminal
+                EnviaParaTerminal("#paramconfig?");
+                Thread.Sleep(500);
+                RecebeDoTerminal(ref paraServidor);
+                System.Diagnostics.Debug.WriteLine($"Param response: {paraServidor}");
+                config.ProcessaParam(paraServidor);
 
-            // pede as opções de atualização
-            EnviaParaTerminal("#updconfig?");
-            Thread.Sleep(500);
-            RecebeDoTerminal(ref paraServidor);
-            config.ProcessaUpdate(paraServidor);
+                // pede as opções de atualização
+                EnviaParaTerminal("#updconfig?");
+                Thread.Sleep(500);
+                RecebeDoTerminal(ref paraServidor);
+                System.Diagnostics.Debug.WriteLine($"Update response: {paraServidor}");
+                config.ProcessaUpdate(paraServidor);
 
-            // entra no loop
-            while(true){
-                // espera o recebimento de dados do terminal
-                controleConectado = RecebeDoTerminal(ref paraServidor);
-                if (controleConectado == 1)// se houve timeout
-                {
-                    if (contLive < 2){// se acontagem de timeouts seguidos for menor que 2
-                        EnviaParaTerminal("#live?");// envia "#live?" para o terminal
-                        contLive++;// incrementa a contagem
+                System.Diagnostics.Debug.WriteLine("Entering main command loop");
+                while(true){
+                    // espera o recebimento de dados do terminal
+                    controleConectado = RecebeDoTerminal(ref paraServidor);
+                    System.Diagnostics.Debug.WriteLine($"Terminal received command: {paraServidor}, Control: {controleConectado}");
+                    
+                    if (controleConectado == 1)// se houve timeout
+                    {
+                        if (contLive < 2){// se acontagem de timeouts seguidos for menor que 2
+                            EnviaParaTerminal("#live?");// envia "#live?" para o terminal
+                            contLive++;// incrementa a contagem
+                        }
+                        else// se houve estouro de vezes de timeout
+                            break;// sai do loop
                     }
-                    else// se houve estouro de vezes de timeout
-                        break;// sai do loop
-                }
-                else if (controleConectado == -1)// se houve erro na leitura
-                    break; // sai do loop
-                else {// se a leitura foi efetuada com sucesso
-                    if (paraServidor.CompareTo("#live") == 0)// verifica se a mensagem foi a resposta do live
-                        contLive = 0; // zera a contagem do live
-                    else {// se foi qualquer outro comando
-                        if (onReceive != null)// verifica se há função para receber o evento
-                            onReceive(this,paraServidor);// envia o evento
+                    else if (controleConectado == -1)// se houve erro na leitura
+                        break; // sai do loop
+                    else {// se a leitura foi efetuada com sucesso
+                        if (paraServidor.CompareTo("#live") == 0)// verifica se a mensagem foi a resposta do live
+                            contLive = 0; // zera a contagem do live
+                        else {// se foi qualquer outro comando
+                            try
+                            {
+                                if (onReceive != null)// verifica se há função para receber o evento
+                                    onReceive(this,paraServidor);// envia o evento
+                            }
+                            catch (Exception handlerEx)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Exception in onReceive handler: {handlerEx.GetType().Name}: {handlerEx.Message}");
+                                // Continue processing, do not close socket
+                            }
+                        }
                     }
                 }
+                sock.Close();// fecha o socket
+                Desconectar(this);// envia o evento para desconectar o terminal
             }
-            sock.Close();// fecha o socket
-            Desconectar(this);// envia o evento para desconectar o terminal
+            catch (Exception ex)
+            {
+                try
+                {
+                    sock?.Close();
+                }
+                catch { }
+                try
+                {
+                    Desconectar?.Invoke(this);
+                }
+                catch { }
+            }
         }
     }
 }

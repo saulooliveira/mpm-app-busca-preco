@@ -1,5 +1,5 @@
 DbfConfig:
-  DbfFilePath: "C:/Users/Cadastro/Documents/Cadger/CADITE.DBF"
+  DbfFilePath: "D:/Worksapce/dbf/CADITE.DBF"
 
 Terminal:
   Porta: 6500

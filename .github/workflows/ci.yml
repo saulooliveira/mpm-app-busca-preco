@@ -46,6 +46,9 @@ jobs:
       - name: Test
         run: dotnet test BuscaPreco.sln --configuration Release --no-build --verbosity normal
 
+      - name: Test E2E (socket + DBF)
+        run: dotnet test BuscaPreco/tests/BuscaPreco.E2E/BuscaPreco.E2E.csproj --configuration Release --no-build --verbosity normal
+
   security_scan_and_release_pr:
     name: Security Scan + Open PR develop -> release/*
     runs-on: windows-latest
