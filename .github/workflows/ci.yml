@@ -111,6 +111,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Read VERSION file
         id: read_version
@@ -205,7 +206,7 @@ jobs:
         if: failure() && github.event_name == 'pull_request'
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           $pr  = "${{ github.event.pull_request.number }}"
           $run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -240,7 +241,7 @@ jobs:
       - name: Create or update PR feature -> develop
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           $featureBranch  = "${{ github.ref_name }}"
           $currentVersion = "${{ steps.ver.outputs.current }}"
@@ -323,6 +324,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Create release branch (if not exists)
         shell: pwsh
@@ -341,7 +343,7 @@ jobs:
       - name: Create PR develop -> release
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           $branch  = "${{ needs.calculate_version.outputs.release_branch }}"
           $version = "${{ needs.calculate_version.outputs.next_version }}"
@@ -372,7 +374,7 @@ jobs:
         if: failure()
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           $pr  = "${{ github.event.pull_request.number }}"
           $run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -399,7 +401,7 @@ jobs:
         id: default_branch
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           $branch = gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
           Write-Host "Default branch: $branch"
@@ -408,7 +410,7 @@ jobs:
       - name: Create PR release -> main
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           $releaseBranch = "${{ github.event.pull_request.base.ref }}"
           $mainBranch    = "${{ steps.default_branch.outputs.name }}"
@@ -447,7 +449,7 @@ jobs:
         if: failure()
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           $pr  = "${{ github.event.pull_request.number }}"
           $run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -480,6 +482,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Create tag, update VERSION, clean pending
         shell: pwsh
