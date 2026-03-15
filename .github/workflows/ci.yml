@@ -104,12 +104,12 @@ jobs:
           $errorText = $result -join "`n"
 
           if ($errorText -match "already exists") {
-            Write-Host "PR develop -> $branch já existe. Seguindo sem falhar."
+            Write-Warning "PR develop -> $branch já existe. Seguindo sem falhar."
             exit 0
           }
 
           if ($errorText -match "not permitted to create or approve pull requests") {
-            Write-Host "Token atual não possui permissão para criar PR via GitHub Actions. Seguindo sem falhar."
+            Write-Warning "Token atual não possui permissão para criar PR via GitHub Actions. Seguindo sem falhar."
             exit 0
           }
 
