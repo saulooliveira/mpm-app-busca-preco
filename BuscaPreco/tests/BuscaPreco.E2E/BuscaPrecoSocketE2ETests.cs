@@ -137,9 +137,8 @@ public class BuscaPrecoSocketE2ETests
 
     private sealed class NullProdutoCacheTracker : IProdutoCacheTracker
     {
-        public int Count => 0;
-        public Produto? GetAny() => null;
         public void Remove(string codigo) { }
+        public IReadOnlyCollection<Produto> SnapshotProdutos() => Array.Empty<Produto>();
         public void Track(string codigo, Produto produto) { }
     }
 
