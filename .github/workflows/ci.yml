@@ -5,6 +5,10 @@ on:
     branches:
       - 'feature/**'
       - 'release/**'
+      - main
+      - master
+    tags:
+      - 'v*'
   pull_request:
     branches:
       - develop
@@ -21,6 +25,8 @@ jobs:
     if: |
       startsWith(github.ref, 'refs/heads/feature/') ||
       startsWith(github.ref, 'refs/heads/release/') ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/master' ||
       (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'develop')
     steps:
       - name: Checkout
@@ -80,49 +86,102 @@ jobs:
             git push origin $branch
           }
 
-      - name: Create PR develop -> release
+      - name: Create PR develop -> release (best effort)
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $branch = "${{ steps.release_branch.outputs.name }}"
-          gh pr create --base $branch --head develop --title "chore(release): promote develop to $branch" --body "PR automática criada após merge em develop."
+          $title = "chore(release): promote develop to $branch"
+          $body = "PR automática criada após merge em develop."
+
+          $result = gh pr create --base $branch --head develop --title $title --body $body 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host $result
+            exit 0
+          }
+
+          $errorText = $result -join "`n"
+
+          if ($errorText -match "already exists") {
+            Write-Host "PR develop -> $branch já existe. Seguindo sem falhar."
+            exit 0
+          }
+
+          if ($errorText -match "not permitted to create or approve pull requests") {
+            Write-Host "Token atual não possui permissão para criar PR via GitHub Actions. Seguindo sem falhar."
+            exit 0
+          }
+
+          Write-Error "Falha ao criar PR automaticamente: $errorText"
+          exit 1
 
   tag_release:
-    name: Auto tag on release/* push
+    name: Auto-increment tag v0.0.* on main/master
     runs-on: windows-latest
     needs: build_test
-    if: startsWith(github.ref, 'refs/heads/release/')
+    if: |
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Create and push tag from release branch
+      - name: Create next tag (v0.0.*)
         shell: pwsh
         run: |
-          $branch = "${{ github.ref_name }}"
-          $version = $branch.Substring(8)
-          if ($version -match '^\d+\.\d+\.\d+$') {
-            $tag = "v$version"
+          git fetch --tags --force
+
+          $existingTags = git tag -l "v0.0.*"
+          $maxPatch = 0
+
+          foreach ($tag in $existingTags) {
+            if ($tag -match '^v0\.0\.(\d+)$') {
+              $patch = [int]$matches[1]
+              if ($patch -gt $maxPatch) {
+                $maxPatch = $patch
+              }
+            }
           }
-          else {
-            $tag = "v1.0.$version"
-          }
+
+          $nextPatch = $maxPatch + 1
+          $newTag = "v0.0.$nextPatch"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          $exists = git tag -l $tag
-          if (-not $exists) {
-            git tag $tag
-            git push origin $tag
-          }
-          else {
-            Write-Host "Tag $tag já existe."
-          }
+          Write-Host "Creating tag $newTag"
+          git tag $newTag
+          git push origin $newTag
 
-# Importante:
-# - master não dispara automações neste workflow por regra de processo:
-#   merge em master representa apenas promoção final para produção.
+  publish_release:
+    name: Publish win-x64 and create GitHub Release
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish self-contained binary (win-x64)
+        run: |
+          dotnet restore BuscaPreco.sln
+          dotnet publish BuscaPreco/BuscaPreco.csproj --configuration Release --runtime win-x64 --self-contained true --output ./publish/win-x64
+
+      - name: Package published output
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Compress-Archive -Path ./publish/win-x64/* -DestinationPath ./artifacts/BuscaPreco-${{ github.ref_name }}-win-x64.zip -Force
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./artifacts/BuscaPreco-${{ github.ref_name }}-win-x64.zip
+          generate_release_notes: true
