@@ -11,7 +11,7 @@ using BuscaPreco.Infrastructure.Scrapers;
 
 namespace BuscaPreco.Presentation.WindowsForms
 {
-    public partial class Form1 : Form
+    public partial class ConfiguracaoForm : Form
     {
         private readonly Logger logger;
         private readonly IBuscaPrecosService buscaPrecosService;
@@ -29,7 +29,7 @@ namespace BuscaPreco.Presentation.WindowsForms
         Método: Form1
         Função: Construtor da classe
         */
-        public Form1(Logger logger, IBuscaPrecosService buscaPrecosService, Servidor servidor)
+    public ConfiguracaoForm(Logger logger, IBuscaPrecosService buscaPrecosService, Servidor servidor)
         {
             this.logger = logger;
             this.buscaPrecosService = buscaPrecosService;
@@ -57,15 +57,14 @@ namespace BuscaPreco.Presentation.WindowsForms
         Método: Form1_Load
         Função: Funçao para tratar o evento formload
         */
-        private void Form1_Load(object sender, EventArgs e)
+    private void Form1_Load(object sender, EventArgs e)
         {
             try
             {
                 ItensSelecionados = new ArrayList(); // cria a lista de terminais conectados
-                Habilita_Configuracoes(false);// desabilita a ediçao das configuraçoes
-                servidor.onReceive += new Servidor.onReceiveCommand(onReceiveData); //cadastra o evendo de recebimento de dados
-                servidor.onChange += new Servidor.onChangeList(onChangeList); // cadastra o evento de lista alterada
-                servidor.startServer(); // inicia o servidor
+                // Nesta tela usamos o formulário apenas como tela de configuração.
+                // Não inicializamos o servidor aqui para evitar comportamento de produção.
+                Habilita_Configuracoes(true); // habilita a edição das configurações
             }
             catch (Exception ex)
             {
@@ -78,12 +77,9 @@ namespace BuscaPreco.Presentation.WindowsForms
         Método: bTexto_Click
         Função: Evento do Botao. Percorre a lista e envia o texto para os terminais conectados
         */
+        // Função de broadcast desabilitada na tela de configuração
         private void bTexto_Click(object sender, EventArgs e){
-            foreach (int i in ItensSelecionados)// pega todos os IDS dos terminais selecionados
-            {
-                Terminal term = (Terminal)terminaisConectados[i];// captura cada terminal da lista
-                term.EnviaTexto(linha1.Text, linha2.Text, Int32.Parse(tempo.Text));// envia o texto para o terminasl
-            }
+            logger.Info("Função de envio de texto aos terminais está desabilitada na tela de configuração.");
         }
 
         /*
@@ -121,16 +117,17 @@ namespace BuscaPreco.Presentation.WindowsForms
         Entrada: str - string
         */
         private void escreveHistorico(string str) {
-            if (this.textBox1.InvokeRequired)//verifica se o componente textbox1 pertence a thread correta, se nao pertencer:
+            // mantém funcionalidade mas protege chamadas de outras threads
+            if (this.textBox1.InvokeRequired)
             {
-                Escreve d = new Escreve(escreveHistorico);//gera o evento para tratar a thread
-                string[] array = new String[1];//cria um vetor para os parametros
-                array[0] = str;//adiciona a string ao vetor
-                this.Invoke(d,array);// re-chama a funçao
+                Escreve d = new Escreve(escreveHistorico);
+                string[] array = new String[1];
+                array[0] = str;
+                this.Invoke(d, array);
             }
-            else//se o componente pertence a thread
+            else
             {
-                this.textBox1.AppendText(str+'\n');// adiciona a string ao componente
+                this.textBox1.AppendText(str + '\n');
             }
         }
 
@@ -154,40 +151,9 @@ namespace BuscaPreco.Presentation.WindowsForms
         Entrada: sender - terminal que enviou o comando
                  str - comando recebido
         */
+        // Ao usar o formulário como tela de configuração, não tratamos eventos recebidos do terminal aqui.
         public void onReceiveData(object sender, string str){
-            Terminal term = (Terminal)sender; // cast para o objeto terminal
-
-            
-    
-
-            str = Validators.SomenteDigitos(str);
-
-            // Substitua "1234" pelo valor do COD que você quer buscar
-            var resultado = buscaPrecosService.BuscarPorCodigo(str);
-
-            if (!string.IsNullOrWhiteSpace(resultado.des))
-            {
-                // envia a consulta para o terminal
-                string descricao = resultado.des.Length > 20 ? resultado.des.Substring(0, 20) : resultado.des;
-                string preco = resultado.vlrVenda1.ToString("N2", new CultureInfo("pt-BR"));
-
-                string textoHistorico = $"{str} {descricao} {preco} \n";
-                escreveHistorico(textoHistorico); // escreve no histrico
-
-
-                logger.Info($"envia a consulta para o terminal  {descricao} {preco}");
-                term.SendProcPrice(descricao, preco);
- 
-            }
-            else
-            {
-                logger.Info($"Produto não encontrado!");
-                term.SendProdNFound();// envia produto nao encontrado
-            }
-
-     
-            
-            
+            logger.Info("onReceiveData recebido, mas ignorei na tela de configuração.");
         }
 
         /*
@@ -275,12 +241,22 @@ namespace BuscaPreco.Presentation.WindowsForms
         Método: button1_Click
         Função: evento para enviar as configuraçoes para o terminal
         */
+        // Salvamento de configuração local em formato YAML simples
         private void button1_Click(object sender, EventArgs e)
         {
-           
-            Terminal term = (Terminal)terminaisConectados[(int)ItensSelecionados[0]];//captura o terminal
-            term.config = geraConfig();// gera o arquivo com o comando
-            term.sendConfig();//envia para o terminal
+            try
+            {
+                var conf = geraConfig();
+                var path = Path.Combine(AppContext.BaseDirectory, "config.yaml");
+                SaveConfigToFile(conf, path);
+                logger.Info($"Configuração salva em: {path}");
+                MessageBox.Show($"Configuração salva em:\n{path}", "Configuração", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                logger.Info($"Erro ao salvar configuração: {ex.Message}");
+                MessageBox.Show($"Erro ao salvar configuração: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         /*
@@ -289,9 +265,8 @@ namespace BuscaPreco.Presentation.WindowsForms
         */
         private void bUpdate_Click(object sender, EventArgs e)
         {
-            Terminal term = (Terminal)terminaisConectados[(int)ItensSelecionados[0]];
-            term.config = geraConfig();
-            term.sendUpdate();
+            // Operação não aplicável na tela de configuração local
+            logger.Info("bUpdate acionado, operação desabilitada na tela de configuração.");
         }
 
         /*
@@ -300,9 +275,7 @@ namespace BuscaPreco.Presentation.WindowsForms
         */
         private void bParam_Click(object sender, EventArgs e)
         {
-            Terminal term = (Terminal)terminaisConectados[(int)ItensSelecionados[0]];
-            term.config = geraConfig();
-            term.sendParam();
+            logger.Info("bParam acionado, operação desabilitada na tela de configuração.");
         }
 
         /*
@@ -370,16 +343,45 @@ namespace BuscaPreco.Presentation.WindowsForms
         */
         private void bReset_Click(object sender, EventArgs e)
         {
-            foreach (int i in ItensSelecionados)// percorre a lista de conectados
-            {
-                Terminal term = (Terminal)terminaisConectados[i];//captura um terminal
-                term.Reset();//envia o comando de reset
-            }
+            logger.Info("bReset acionado, operação desabilitada na tela de configuração.");
         }
 
-        private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+        // Salva uma configuração simples em YAML (formato mínimo)
+        private void SaveConfigToFile(Configuracoes conf, string filePath)
         {
-            servidor.stopServer();
+            string Escape(string s) => s?.Replace("\\", "\\\\").Replace("\"", "\"\"") ?? string.Empty;
+
+            var lines = new System.Collections.Generic.List<string>();
+            lines.Add($"IPCliente: \"{Escape(conf.IPCliente)}\"");
+            lines.Add($"IPServer: \"{Escape(conf.IPServer)}\"");
+            lines.Add($"Mascara: \"{Escape(conf.Mascara)}\"");
+            lines.Add($"TLinha1: \"{Escape(conf.TLinha1)}\"");
+            lines.Add($"TLinha2: \"{Escape(conf.TLinha2)}\"");
+            lines.Add($"TLinha3: \"{Escape(conf.TLinha3)}\"");
+            lines.Add($"TLinha4: \"{Escape(conf.TLinha4)}\"");
+            lines.Add($"Tempo: {((int)conf.Tempo)}");
+            lines.Add($"Gateway: \"{Escape(conf.Gateway)}\"");
+            lines.Add($"ServidorNomes: \"{Escape(conf.ServidorNomes)}\"");
+            lines.Add($"Nome: \"{Escape(conf.Nome)}\"");
+            lines.Add($"EndUpdate: \"{Escape(conf.EndUpdate)}\"");
+            lines.Add($"User: \"{Escape(conf.User)}\"");
+            lines.Add($"Pass: \"{Escape(conf.Pass)}\"");
+            lines.Add($"IPDinamico: {conf.IPDinamico}");
+            lines.Add($"BuscaServidor: {conf.BuscaServidor}");
+
+            File.WriteAllLines(filePath, lines);
+        }
+
+    private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            try
+            {
+                servidor.Stop();
+            }
+            catch (Exception ex)
+            {
+                logger.Warning($"Erro ao parar servidor: {ex.Message}");
+            }
         }
     }
 }

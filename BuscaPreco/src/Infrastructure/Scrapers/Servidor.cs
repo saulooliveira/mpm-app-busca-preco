@@ -93,6 +93,17 @@ namespace BuscaPreco.Infrastructure.Scrapers
             server?.Close();
         }
 
+        // Non-obsolete wrapper method to stop the server
+        public void Stop()
+        {
+            cancellationTokenSource?.Cancel();
+            try
+            {
+                server?.Close();
+            }
+            catch { }
+        }
+
         private async Task ProcessaServidorAsync(CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)

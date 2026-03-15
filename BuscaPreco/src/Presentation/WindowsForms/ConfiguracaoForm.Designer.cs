@@ -1,14 +1,13 @@
 ﻿namespace BuscaPreco.Presentation.WindowsForms
 {
-    partial class Form1
+    partial class ConfiguracaoForm
     {
         /// <summary>
         /// Required designer variable.
-        /// </summary>
-        private System.ComponentModel.IContainer components = null;
+    /// </summary>
+    private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Clean up any resources being used.
+    /// Clean up any resources being used.
         /// </summary>
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
@@ -643,15 +642,15 @@
             this.label7.TabIndex = 0;
             this.label7.Text = "IP Servidor:";
             // 
-            // Form1
+            // ConfiguracaoForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(638, 346);
             this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.lista);
-            this.Name = "Form1";
-            this.Text = "Servidor Busca-Preço";
+            this.Name = "ConfiguracaoForm";
+            this.Text = "Configuração Busca-Preço";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.Form1_FormClosed);
             this.Load += new System.EventHandler(this.Form1_Load);
             this.tabControl1.ResumeLayout(false);
