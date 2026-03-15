@@ -95,7 +95,7 @@ public class BuscaPrecoSocketE2ETests
 
     private static string BuildConfigResponse()
     {
-        return "#reconf02" + "00000000";
+        return "#reconf021A1B1C1D1E1F1G0";
     }
 
     private static string BuildParamResponse()
@@ -105,7 +105,7 @@ public class BuscaPrecoSocketE2ETests
 
     private static string BuildUpdateResponse()
     {
-        return "#rupdconfig" + "000000";
+        return "#rupdconfig1A1B1C1D1E1F";
     }
 
     private static async Task<string> ReadAsciiAsync(NetworkStream stream, int timeoutMs = 3000)
