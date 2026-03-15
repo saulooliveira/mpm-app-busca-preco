@@ -28,7 +28,7 @@ BuscaPreco/
 ├── Tests/
 │   ├── UnitTests/                   # Espaço para testes unitários
 │   └── IntegrationTests/            # Espaço para testes de integração
-├── BuscaPreco.csproj                # Projeto WinForms .NET Framework 4.8
+├── BuscaPreco.csproj                # Projeto WinForms (.NET 8 / net8.0-windows)
 ├── config.example.yaml              # Template versionável de configuração
 └── config.yaml                      # Configuração local (ignorada por segurança)
 ```
@@ -63,39 +63,89 @@ sequenceDiagram
 
 ## Setup local
 
+As instruções abaixo mostram como preparar, compilar e executar o projeto em uma máquina Windows. Uso recomendado em PowerShell (Windows PowerShell v5.1) ou via Visual Studio.
+
 ### 1) Pré-requisitos
 
-- Windows com **.NET Framework 4.8 Developer Pack** instalado.
-- **Visual Studio 2022** (ou Build Tools) com MSBuild.
-- **NuGet CLI** disponível no PATH.
+- Windows com o .NET 8 SDK (ou .NET Desktop Runtime para Windows) instalado. Verifique o TargetFramework em `BuscaPreco.csproj` se tiver dúvidas.
+- Visual Studio 2022 (ou Build Tools) com MSBuild (opcional).
+- dotnet CLI (incluído no .NET 8 SDK) disponível no PATH — recomendado para restore/build/run.
+
+Observação: este projeto usa .NET 8 (TargetFramework `net8.0-windows`). Certifique-se de ter o .NET 8 SDK/Runtime instalado; abra `BuscaPreco.csproj` no Visual Studio para confirmar o TargetFramework se necessário.
 
 ### 2) Restaurar pacotes
 
-```bash
-nuget restore BuscaPreco.sln
+Usando dotnet CLI (PowerShell):
+
+```powershell
+dotnet restore .\BuscaPreco.sln
 ```
+
+Ou abra a solução no Visual Studio e selecione: Project -> Restore NuGet Packages.
 
 ### 3) Configuração de ambiente
 
-1. Copie o arquivo de exemplo:
+1. Copie o arquivo de exemplo para criar sua configuração local (PowerShell):
 
-```bash
-copy BuscaPreco\config.example.yaml BuscaPreco\config.yaml
+```powershell
+Copy-Item -Path .\BuscaPreco\config.example.yaml -Destination .\BuscaPreco\config.yaml
 ```
 
-2. Ajuste os campos no `config.yaml` para seu ambiente local:
-   - caminho do arquivo DBF;
-   - porta do terminal;
-   - SMTP e credenciais para relatório diário;
-   - parâmetros de log.
+2. Edite `BuscaPreco\config.yaml` e ajuste os valores para seu ambiente:
+- caminho do arquivo DBF
+- porta TCP do terminal
+- SMTP e credenciais (se usar relatório por e-mail)
+- parâmetros de log (nível, arquivo, rota)
+
+Importante: `config.yaml` está no .gitignore por segurança; não comite credenciais.
 
 ### 4) Compilar
 
-```bash
-msbuild BuscaPreco.sln /t:Build /p:Configuration=Release /p:Platform="Any CPU"
+Via dotnet CLI (PowerShell):
+
+```powershell
+dotnet build .\BuscaPreco.sln -c Release
 ```
+
+Ou use o Visual Studio: abra a solução `BuscaPreco.sln` e escolha Build -> Build Solution (ajuste Configuration/Platform conforme necessário).
+
+Para gerar artefatos prontos para distribuição use `dotnet publish`:
+
+```powershell
+dotnet publish .\BuscaPreco\BuscaPreco.csproj -c Release -r win-x64 -o .\publish
+```
+
+Após a build/publish, os caminhos típicos de saída são:
+
+- `BuscaPreco\bin\Release\` ou
+- `BuscaPreco\bin\Release\net8.0-windows\` ou
+- `BuscaPreco\publish\` (quando usar `dotnet publish`)
 
 ### 5) Executar
 
-- Execute o binário gerado em `BuscaPreco\bin\Release\`.
-- A aplicação iniciará em **System Tray** e ficará escutando a porta configurada.
+1. Verifique se `BuscaPreco\config.yaml` existe e está configurado.
+
+2a. Executar diretamente com dotnet (útil para desenvolvimento):
+
+```powershell
+dotnet run --project .\BuscaPreco\BuscaPreco.csproj --configuration Release
+```
+
+2b. Executar o binário gerado após build/publish (exemplo PowerShell):
+
+```powershell
+Start-Process -FilePath .\BuscaPreco\bin\Release\net8.0-windows\BuscaPreco.exe
+```
+
+Ou execute o executável dentro da pasta `publish` se tiver usado `dotnet publish`.
+
+A aplicação roda em System Tray e ficará escutando a porta configurada para atender o terminal (TCP/IP).
+
+### 6) Troubleshooting rápido
+
+- Porta em uso: verifique se a porta configurada está livre ou altere-a no `config.yaml`.
+- Permissões: se a aplicação usa portas baixas ou recursos restritos, execute o binário como Administrador.
+- Logs: verifique os arquivos de log configurados (Serilog) para mensagens de start/erro.
+- Erro ao restaurar pacotes: abra a solução no Visual Studio e clique em Restore NuGet Packages; confirme a versão do .NET alvo em `BuscaPreco.csproj`.
+
+Se quiser, eu posso também adicionar um pequeno script PowerShell `scripts\run.ps1` que automatize restore -> build -> run. Informe se deseja que eu crie isso.

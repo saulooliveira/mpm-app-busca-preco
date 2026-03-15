@@ -12,13 +12,13 @@ namespace BuscaPreco.Presentation.WindowsForms
         private readonly NotifyIcon _notifyIcon;
         private readonly IBuscaPrecosService _buscaPrecosService;
         private readonly Logger _logger;
-        private readonly Func<Form1> _logFormFactory;
-        private Form1 _logForm;
+    private readonly Func<ConfiguracaoForm> _logFormFactory;
+    private ConfiguracaoForm _logForm;
 
         public TrayApplicationContext(
             IBuscaPrecosService buscaPrecosService,
             Logger logger,
-            Func<Form1> logFormFactory)
+            Func<ConfiguracaoForm> logFormFactory)
         {
             _buscaPrecosService = buscaPrecosService;
             _logger = logger;
@@ -61,11 +61,15 @@ namespace BuscaPreco.Presentation.WindowsForms
             var forceSearchItem = new ToolStripMenuItem("Forçar Busca de Preços");
             forceSearchItem.Click += (_, __) => ForcePriceSearch();
 
+            var configItem = new ToolStripMenuItem("Configurações");
+            configItem.Click += (_, __) => ShowLogForm();
+
             var exitItem = new ToolStripMenuItem("Sair");
             exitItem.Click += (_, __) => ExitApplication();
 
             contextMenu.Items.Add(statusItem);
             contextMenu.Items.Add(forceSearchItem);
+            contextMenu.Items.Add(configItem);
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(exitItem);
 
@@ -106,10 +110,16 @@ namespace BuscaPreco.Presentation.WindowsForms
                 "Aplicação ativa na bandeja.",
                 ToolTipIcon.Info);
 
-            ShowLogForm();
+            ShowConfiguracaoForm();
         }
 
         private void ShowLogForm()
+        {
+            // kept for compatibility
+            ShowConfiguracaoForm();
+        }
+
+        private void ShowConfiguracaoForm()
         {
             if (_logForm == null || _logForm.IsDisposed)
             {

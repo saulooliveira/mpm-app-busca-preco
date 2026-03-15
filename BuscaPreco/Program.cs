@@ -84,8 +84,8 @@ namespace BuscaPreco
                     services.AddHostedService<RelatorioDiarioBackgroundService>();
                     services.AddHostedService<ScreensaverPromocionalBackgroundService>();
 
-                    services.AddTransient<Form1>();
-                    services.AddSingleton<Func<Form1>>(sp => () => sp.GetRequiredService<Form1>());
+                    services.AddTransient<ConfiguracaoForm>();
+                    services.AddSingleton<Func<ConfiguracaoForm>>(sp => () => sp.GetRequiredService<ConfiguracaoForm>());
                     services.AddSingleton<TrayApplicationContext>();
                 })
                 .Build();
