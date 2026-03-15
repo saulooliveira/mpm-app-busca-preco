@@ -82,6 +82,16 @@ namespace BuscaPreco.Infrastructure.Scrapers
 
         public void startServer()
         {
+            Start();
+        }
+
+        public void Start()
+        {
+            if (serverTask != null && !serverTask.IsCompleted)
+            {
+                return;
+            }
+
             cancellationTokenSource = new CancellationTokenSource();
             serverTask = Task.Run(() => ProcessaServidorAsync(cancellationTokenSource.Token));
         }
