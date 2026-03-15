@@ -1,5 +1,18 @@
 name: BuscaPreco CI/CD
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Versionamento automático via arquivo VERSION na raiz do repositório.
+#
+# Formato do arquivo: MAJOR.MINOR.PATCH  (ex: 0.1.0)
+#
+# Regras de auto-bump (aplicadas pelo pipeline, nunca manualmente):
+#   patch >= 99  →  minor += 1,  patch = 0
+#   minor >= 9   →  major += 1,  minor = 0,  patch = 0
+#
+# Após cada release o pipeline faz commit do VERSION atualizado em main.
+# Para forçar um bump manual basta editar o arquivo VERSION e commitar.
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
   push:
     branches:
@@ -12,267 +25,602 @@ on:
   pull_request:
     branches:
       - develop
+      - 'release/**'
     types: [opened, synchronize, reopened, closed]
 
 permissions:
   contents: write
   pull-requests: write
 
-# ─── Reutilizável: setup do ambiente .NET ────────────────────────────────────
-# Evita duplicação entre jobs que precisam de dotnet
-env:
-  DOTNET_VERSION: '8.0.x'
-  SOLUTION: BuscaPreco.sln
-
-# ─── Condições globais ────────────────────────────────────────────────────────
-# Centraliza a lógica de quando rodar CI
 jobs:
 
-  # ── 1. Restore ───────────────────────────────────────────────────────────────
-  restore:
-    name: Restore dependencies
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JOB 1 — Build + Test
+  # ═══════════════════════════════════════════════════════════════════════════
+  build_test:
+    name: Build and Test (.NET 8)
     runs-on: windows-latest
     if: |
       startsWith(github.ref, 'refs/heads/feature/') ||
       startsWith(github.ref, 'refs/heads/release/') ||
-      github.ref == 'refs/heads/main'                ||
-      github.ref == 'refs/heads/master'              ||
-      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'develop')
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/master' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'develop') ||
+      (github.event_name == 'pull_request' && startsWith(github.event.pull_request.base.ref, 'release/'))
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: '8.0.x'
 
-      - name: Restore
-        run: dotnet restore ${{ env.SOLUTION }}
-
-      # Cache para os próximos jobs (padrão de mercado)
       - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
           restore-keys: nuget-${{ runner.os }}-
 
-  # ── 2. Build ─────────────────────────────────────────────────────────────────
-  build:
-    name: Build
-    runs-on: windows-latest
-    needs: restore
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Restore cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+      - name: Restore
+        run: dotnet restore BuscaPreco.sln
 
       - name: Build
-        run: dotnet build ${{ env.SOLUTION }} --configuration Release --no-restore
-
-      # Publica artefatos de build para reuso nos jobs de test
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: '**/bin/Release/**'
-          retention-days: 1
-
-  # ── 3. Unit + Integration Tests ───────────────────────────────────────────────
-  test:
-    name: Test (unit + integration)
-    runs-on: windows-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-output
+        run: dotnet build BuscaPreco.sln --configuration Release --no-restore
 
       - name: Test
-        run: >
-          dotnet test ${{ env.SOLUTION }}
-          --configuration Release
-          --no-build
-          --verbosity normal
-          --logger "trx;LogFileName=test-results.trx"
-          --results-directory ./test-results
+        run: dotnet test BuscaPreco.sln --configuration Release --no-build --verbosity normal
 
-      - name: Upload test results
-        if: always()           # publica mesmo se os testes falharem
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: ./test-results/*.trx
+      - name: Test E2E (socket + DBF)
+        run: dotnet test BuscaPreco/tests/BuscaPreco.E2E/BuscaPreco.E2E.csproj --configuration Release --no-build --verbosity normal
 
-  # ── 4. E2E Tests ─────────────────────────────────────────────────────────────
-  test-e2e:
-    name: Test E2E (socket + DBF)
-    runs-on: windows-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-output
-
-      - name: Test E2E
-        run: >
-          dotnet test BuscaPreco/tests/BuscaPreco.E2E/BuscaPreco.E2E.csproj
-          --configuration Release
-          --no-build
-          --verbosity normal
-          --logger "trx;LogFileName=e2e-results.trx"
-          --results-directory ./test-results
-
-      - name: Upload E2E results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-e2e-results
-          path: ./test-results/*.trx
-
-  # ── 5. Security Scan ─────────────────────────────────────────────────────────
-  security-scan:
-    name: Security scan (SAST + deps)
-    runs-on: windows-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Simulated SAST / dependency check
-        run: echo "[SECURITY SCAN] Running SAST/dependency checks (simulado)."
-
-      # Substitua pela action real quando quiser, ex:
-      # - uses: aquasecurity/trivy-action@master
-      #   with:
-      #     scan-type: 'fs'
-      #     scan-ref: '.'
-      #     severity: 'HIGH,CRITICAL'
-
-  # ── 6. Release PR (develop → release/*) ─────────────────────────────────────
-  release-pr:
-    name: Open PR develop → release/*
-    runs-on: windows-latest
-    needs: [test, test-e2e, security-scan]
-    if: |
-      github.event_name == 'pull_request'                   &&
-      github.event.pull_request.base.ref == 'develop'       &&
-      github.event.action == 'closed'                        &&
-      github.event.pull_request.merged == true
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Prepare release branch name
-        id: release_branch
-        shell: pwsh
-        run: |
-          $name = "release/" + (Get-Date -Format "yyyy.MM.dd")
-          "name=$name" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
-      - name: Create release branch (if not exists)
-        shell: pwsh
-        run: |
-          $branch = "${{ steps.release_branch.outputs.name }}"
-          git fetch origin --prune
-          $remoteBranch = git ls-remote --heads origin $branch
-          if (-not $remoteBranch) {
-            git checkout -b $branch origin/develop
-            git push origin $branch
-          }
-
-      - name: Create PR develop → release
+      - name: Notify failure on PR
+        if: failure() && github.event_name == 'pull_request'
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $branch = "${{ steps.release_branch.outputs.name }}"
-          $title  = "chore(release): promote develop to $branch"
-          $body   = "PR automática criada após merge em develop."
+          $pr  = "${{ github.event.pull_request.number }}"
+          $run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          gh pr comment $pr --body "❌ **build_test falhou** neste PR. [Ver logs]($run)"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JOB 2 — Calcular próxima versão
+  #
+  # Lê o arquivo VERSION da raiz (ex: 0.1.0) e aplica as regras de auto-bump:
+  #   patch >= 99  →  minor += 1, patch = 0
+  #   minor >= 9   →  major += 1, minor = 0, patch = 0
+  #
+  # Reserva a versão calculada via tag pending/* para evitar race condition
+  # entre merges simultâneos.
+  # ═══════════════════════════════════════════════════════════════════════════
+  calculate_version:
+    name: Calculate next version
+    runs-on: windows-latest
+    needs: build_test
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'develop' && github.event.action == 'closed' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+    outputs:
+      next_version:   ${{ steps.version.outputs.next_version }}
+      release_branch: ${{ steps.version.outputs.release_branch }}
+    steps:
+      - name: Generate GitHub App token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app_token.outputs.token }}
+
+      - name: Read VERSION file
+        id: read_version
+        shell: pwsh
+        run: |
+          $versionFile = "VERSION"
+
+          # Cria o arquivo com valor inicial se não existir ainda
+          if (-not (Test-Path $versionFile)) {
+            Write-Host "Arquivo VERSION não encontrado — criando com 0.0.0"
+            "0.0.0" | Out-File -FilePath $versionFile -Encoding utf8 -NoNewline
+          }
+
+          $raw = (Get-Content $versionFile -Raw).Trim()
+
+          if ($raw -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
+            Write-Error "Formato inválido no arquivo VERSION: '$raw'. Esperado: MAJOR.MINOR.PATCH"
+            exit 1
+          }
+
+          $major = [int]$Matches[1]
+          $minor = [int]$Matches[2]
+          $patch = [int]$Matches[3]
+
+          Write-Host "VERSION atual: $major.$minor.$patch"
+          "major=$major" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "minor=$minor" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "patch=$patch" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Calculate next version with auto-bump
+        id: version
+        shell: pwsh
+        run: |
+          git fetch --tags --force
+
+          $major = [int]"${{ steps.read_version.outputs.major }}"
+          $minor = [int]"${{ steps.read_version.outputs.minor }}"
+          $patch = [int]"${{ steps.read_version.outputs.patch }}"
+
+          # ── Auto-bump ──────────────────────────────────────────
+          # O arquivo VERSION já guarda a próxima versão (gravada
+          # pelo job tag_release do ciclo anterior), então não
+          # incrementamos patch aqui — usamos o valor direto.
+          # O bump só é aplicado se o patch atual já atingiu o limite.
+
+          if ($patch -ge 100) {
+            Write-Host "patch >= 100 detectado no VERSION → bump minor"
+            $patch = 0
+            $minor += 1
+          }
+
+          if ($minor -ge 10) {
+            Write-Host "minor >= 10 detectado no VERSION → bump major"
+            $minor = 0
+            $major += 1
+          }
+
+          $nextVersion   = "v$major.$minor.$patch"
+          $releaseBranch = "release/$nextVersion"
+          $pendingTag    = "pending/$nextVersion"
+
+          # ── Race condition guard ───────────────────────────────
+          # Se a pending tag já existe, outro job se adiantou.
+          # Avança um patch para não colidir.
+          $existingPending = git tag -l $pendingTag
+          if ($existingPending) {
+            Write-Host "Colisão detectada em $pendingTag — avançando patch."
+            $patch += 1
+            if ($patch -ge 100) { $patch = 0; $minor += 1 }
+            if ($minor -ge 10)  { $minor = 0; $major += 1 }
+
+            $nextVersion   = "v$major.$minor.$patch"
+            $releaseBranch = "release/$nextVersion"
+            $pendingTag    = "pending/$nextVersion"
+          }
+
+          # ── Reserva a versão ──────────────────────────────────
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag $pendingTag
+          git push origin $pendingTag
+          Write-Host "Versão reservada: $pendingTag"
+
+          Write-Host "next_version  : $nextVersion"
+          Write-Host "release_branch: $releaseBranch"
+
+          "next_version=$nextVersion"     | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "release_branch=$releaseBranch" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Notify failure on PR
+        if: failure() && github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          $pr  = "${{ github.event.pull_request.number }}"
+          $run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          gh pr comment $pr --body "❌ **calculate_version falhou**. [Ver logs]($run)"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JOB 3 — Criar ou atualizar PR: feature → develop
+  # Roda em todo push em feature/**.
+  # Não depende do calculate_version (que só roda após merge em develop).
+  # Lê o arquivo VERSION para exibir a versão prevista no body do PR.
+  # ═══════════════════════════════════════════════════════════════════════════
+  feature_pr:
+    name: Create or Update PR feature -> develop
+    runs-on: windows-latest
+    needs: build_test
+    if: |
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/heads/feature/')
+    steps:
+      - name: Generate GitHub App token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read current VERSION
+        id: ver
+        shell: pwsh
+        run: |
+          $raw = "0.0.0"
+          if (Test-Path VERSION) { $raw = (Get-Content VERSION -Raw).Trim() }
+          "current=$raw" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "VERSION atual: $raw"
+
+      - name: Create or update PR feature -> develop
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          $featureBranch  = "${{ github.ref_name }}"
+          $currentVersion = "${{ steps.ver.outputs.current }}"
+          $shortSha       = "${{ github.sha }}".Substring(0,7)
+
+          $title = "feat: merge $featureBranch into develop"
+          $body  = @"
+          ## PR automático — feature → develop
+
+          | Campo              | Valor                  |
+          |--------------------|------------------------|
+          | Feature branch     | ``$featureBranch``     |
+          | Versão no VERSION  | ``$currentVersion``    |
+          | Último commit      | ``$shortSha``          |
+
+          > A versão exata do release será calculada no momento do merge em develop.
+          > Atualizado automaticamente a cada push em ``$featureBranch``.
+          "@
+
+          $existing = gh pr list --head $featureBranch --base develop --state open --json number --jq '.[0].number' 2>$null
+
+          if ($existing) {
+            Write-Host "PR #$existing já existe — atualizando..."
+            gh pr edit $existing --title $title --body $body
+          } else {
+            Write-Host "Criando novo PR..."
+            $result = gh pr create --base develop --head $featureBranch --title $title --body $body 2>&1
+            if ($LASTEXITCODE -ne 0) {
+              $err = $result -join "`n"
+              if ($err -match "already exists") { Write-Warning "PR já existe (race condition). Ignorando."; exit 0 }
+              if ($err -match "not permitted")   { Write-Warning "Token sem permissão. Ignorando."; exit 0 }
+              Write-Error "Falha ao criar PR: $err"; exit 1
+            }
+            Write-Host $result
+          }
+
+      - name: Notify failure
+        if: failure()
+        run: echo "::error::feature_pr falhou para ${{ github.ref_name }}"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JOB 4 — Security Scan (isolado)
+  # Se falhar, bloqueia a criação do PR de release.
+  # ═══════════════════════════════════════════════════════════════════════════
+  security_scan:
+    name: Security Scan (SAST + dependencies)
+    runs-on: windows-latest
+    needs: build_test
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'develop' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run security scan
+        run: echo "[SECURITY SCAN] Running SAST/dependency checks (simulado)."
+
+      - name: Notify scan failure
+        if: failure()
+        run: |
+          echo "::error::Security scan falhou. Ver: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JOB 5 — Criar branch release + PR develop → release
+  # ═══════════════════════════════════════════════════════════════════════════
+  create_release_pr:
+    name: Create branch release + PR develop -> release
+    runs-on: windows-latest
+    needs: [calculate_version, security_scan]
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'develop' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true
+    steps:
+      - name: Generate GitHub App token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app_token.outputs.token }}
+
+      - name: Create release branch (if not exists)
+        shell: pwsh
+        run: |
+          $branch = "${{ needs.calculate_version.outputs.release_branch }}"
+          git fetch origin --prune
+          $remote = git ls-remote --heads origin $branch
+          if (-not $remote) {
+            Write-Host "Criando branch $branch a partir de develop..."
+            git checkout -b $branch origin/develop
+            git push origin $branch
+          } else {
+            Write-Host "Branch $branch já existe. Nenhuma ação necessária."
+          }
+
+      - name: Create PR develop -> release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          $branch  = "${{ needs.calculate_version.outputs.release_branch }}"
+          $version = "${{ needs.calculate_version.outputs.next_version }}"
+
+          $title = "chore(release): promote develop to $branch"
+          $body  = @"
+          ## Release $version
+
+          PR automática criada após merge em develop.
+
+          | Campo          | Valor        |
+          |----------------|--------------|
+          | Versão         | ``$version`` |
+          | Branch release | ``$branch``  |
+
+          > Após o merge será aberto automaticamente o PR ``$branch → main``.
+          "@
 
           $result = gh pr create --base $branch --head develop --title $title --body $body 2>&1
           if ($LASTEXITCODE -eq 0) { Write-Host $result; exit 0 }
 
           $err = $result -join "`n"
-          if ($err -match "already exists|not permitted") {
-            Write-Warning "PR já existe ou sem permissão. Seguindo."
-            exit 0
-          }
-          Write-Error "Erro ao criar PR: $err"; exit 1
+          if ($err -match "already exists") { Write-Warning "PR já existe. Ignorando."; exit 0 }
+          if ($err -match "not permitted")   { Write-Warning "Token sem permissão. Ignorando."; exit 0 }
+          Write-Error "Falha ao criar PR: $err"; exit 1
 
-  # ── 7. Tag Release (main/master) ─────────────────────────────────────────────
-  tag-release:
-    name: Auto-increment tag v0.0.*
+      - name: Notify failure
+        if: failure()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          $pr  = "${{ github.event.pull_request.number }}"
+          $run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          gh pr comment $pr --body "❌ **create_release_pr falhou**. [Ver logs]($run)"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JOB 6 — Abrir PR release → main
+  # ═══════════════════════════════════════════════════════════════════════════
+  release_to_main_pr:
+    name: Open PR release -> main
     runs-on: windows-latest
-    needs: [test, test-e2e, security-scan]
+    if: |
+      github.event_name == 'pull_request' &&
+      startsWith(github.event.pull_request.base.ref, 'release/') &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect default branch (main or master)
+        id: default_branch
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          $branch = gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
+          Write-Host "Default branch: $branch"
+          "name=$branch" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Create PR release -> main
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          $releaseBranch = "${{ github.event.pull_request.base.ref }}"
+          $mainBranch    = "${{ steps.default_branch.outputs.name }}"
+          $version       = $releaseBranch -replace '^release/', ''
+
+          $title = "chore(release): merge $releaseBranch into $mainBranch"
+          $body  = @"
+          ## Promoção para produção — $version
+
+          PR automática criada após merge de develop em ``$releaseBranch``.
+
+          | Campo           | Valor               |
+          |-----------------|---------------------|
+          | Versão          | ``$version``        |
+          | Branch release  | ``$releaseBranch``  |
+          | Branch destino  | ``$mainBranch``     |
+
+          > Após o merge:
+          > - a tag ``$version`` será criada automaticamente
+          > - o arquivo VERSION será atualizado com commit em ``$mainBranch``
+          > - o binário win-x64 será publicado como GitHub Release
+          "@
+
+          $existing = gh pr list --head $releaseBranch --base $mainBranch --state open --json number --jq '.[0].number' 2>$null
+          if ($existing) { Write-Host "PR #$existing já existe."; exit 0 }
+
+          $result = gh pr create --base $mainBranch --head $releaseBranch --title $title --body $body 2>&1
+          if ($LASTEXITCODE -eq 0) { Write-Host $result; exit 0 }
+
+          $err = $result -join "`n"
+          if ($err -match "already exists") { Write-Warning "PR já existe. Ignorando."; exit 0 }
+          if ($err -match "not permitted")   { Write-Warning "Token sem permissão. Ignorando."; exit 0 }
+          Write-Error "Falha ao criar PR: $err"; exit 1
+
+      - name: Notify failure
+        if: failure()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          $pr  = "${{ github.event.pull_request.number }}"
+          $run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          gh pr comment $pr --body "❌ **release_to_main_pr falhou**. [Ver logs]($run)"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JOB 7 — Auto-tag + atualiza arquivo VERSION em main
+  #
+  # Fluxo após merge em main:
+  #   1. Remove a pending tag (reserva usada neste ciclo)
+  #   2. Cria a tag de release (ex: v0.1.0)
+  #   3. Calcula a próxima versão aplicando as regras de bump
+  #   4. Grava a próxima versão no arquivo VERSION e faz commit em main
+  #      → próximo ciclo lê este arquivo e parte do número certo
+  #
+  # Exemplos de bump gravados no VERSION:
+  #   tag criada v0.0.98  → VERSION = 0.0.99
+  #   tag criada v0.0.99  → VERSION = 0.1.0   (patch estourou)
+  #   tag criada v0.9.99  → VERSION = 1.0.0   (minor estourou)
+  # ═══════════════════════════════════════════════════════════════════════════
+  tag_release:
+    name: Auto-tag + update VERSION on main
+    runs-on: windows-latest
+    needs: [build_test, calculate_version]
     if: |
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
-      - uses: actions/checkout@v4
+      - name: Generate GitHub App token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ steps.app_token.outputs.token }}
 
-      - name: Create next tag
+      - name: Create tag, update VERSION, clean pending
         shell: pwsh
         run: |
           git fetch --tags --force
-          $maxPatch = git tag -l "v0.0.*" |
-            Where-Object { $_ -match '^v0\.0\.(\d+)$' } |
-            ForEach-Object { [int]$matches[1] } |
-            Measure-Object -Maximum | Select-Object -ExpandProperty Maximum
 
-          $next = if ($maxPatch) { $maxPatch + 1 } else { 1 }
-          $tag  = "v0.0.$next"
+          $newTag     = "${{ needs.calculate_version.outputs.next_version }}"
+          $pendingTag = "pending/$newTag"
 
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag $tag
-          git push origin $tag
-          Write-Host "Tagged $tag"
 
-  # ── 8. Publish Release ───────────────────────────────────────────────────────
-  publish-release:
-    name: Publish win-x64 + GitHub Release
+          # ── 1. Remove pending tag ────────────────────────────────
+          $pendingExists = git tag -l $pendingTag
+          if ($pendingExists) {
+            git tag -d $pendingTag
+            git push origin ":refs/tags/$pendingTag" 2>$null
+            Write-Host "Pending tag $pendingTag removida."
+          }
+
+          # ── 2. Cria tag de release ───────────────────────────────
+          $alreadyExists = git tag -l $newTag
+          if ($alreadyExists) {
+            Write-Warning "Tag $newTag já existe — pulando criação."
+          } else {
+            Write-Host "Criando tag $newTag"
+            git tag $newTag
+            git push origin $newTag
+          }
+
+          # ── 3. Calcula próxima versão e grava no VERSION ─────────
+          $clean = $newTag -replace '^v', ''
+          if ($clean -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
+            Write-Error "Formato de tag inesperado: $newTag"; exit 1
+          }
+
+          $major = [int]$Matches[1]
+          $minor = [int]$Matches[2]
+          $patch = [int]$Matches[3]
+
+          # Incrementa patch e aplica regras de bump em cascata
+          $patch += 1
+          if ($patch -ge 100) {
+            Write-Host "patch >= 100 → bump minor"
+            $patch = 0; $minor += 1
+          }
+          if ($minor -ge 10) {
+            Write-Host "minor >= 10 → bump major"
+            $minor = 0; $major += 1
+          }
+
+          $nextVersionClean = "$major.$minor.$patch"
+          Write-Host "Próxima versão gravada no VERSION: $nextVersionClean"
+          $nextVersionClean | Out-File -FilePath VERSION -Encoding utf8 -NoNewline
+
+          # Commit do VERSION em main — [skip ci] evita loop de pipeline
+          git add VERSION
+          $diff = git diff --cached --name-only
+          if ($diff) {
+            git commit -m "chore(version): bump VERSION to $nextVersionClean [skip ci]"
+            git push origin HEAD
+            Write-Host "VERSION atualizado e commitado."
+          } else {
+            Write-Host "VERSION não mudou — nenhum commit necessário."
+          }
+
+      - name: Notify failure
+        if: failure()
+        run: echo "::error::tag_release falhou para ${{ needs.calculate_version.outputs.next_version }}"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JOB 8 — Publish win-x64 + GitHub Release
+  # ═══════════════════════════════════════════════════════════════════════════
+  publish_release:
+    name: Publish win-x64 and create GitHub Release
     runs-on: windows-latest
+    needs: build_test
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-dotnet@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: '8.0.x'
 
-      - name: Publish self-contained (win-x64)
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore BuscaPreco.sln
+
+      - name: Test before publish
+        run: dotnet test BuscaPreco.sln --configuration Release --verbosity normal
+
+      - name: Publish self-contained binary (win-x64)
         run: |
-          dotnet restore ${{ env.SOLUTION }}
-          dotnet publish BuscaPreco/BuscaPreco.csproj \
-            --configuration Release \
-            --runtime win-x64 \
-            --self-contained true \
+          dotnet publish BuscaPreco/BuscaPreco.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --no-restore `
             --output ./publish/win-x64
 
-      - name: Package artifact
+      - name: Package published output
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
@@ -286,3 +634,14 @@ jobs:
         with:
           files: ./artifacts/BuscaPreco-${{ github.ref_name }}-win-x64.zip
           generate_release_notes: true
+
+      - name: Notify and clean up on failure
+        if: failure()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          gh release delete $tag --yes 2>$null
+          echo "::error::publish_release falhou para $tag. Release removido. Ver: $run"
