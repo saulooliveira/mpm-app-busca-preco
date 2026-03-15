@@ -18,65 +18,177 @@ permissions:
   contents: write
   pull-requests: write
 
+# ─── Reutilizável: setup do ambiente .NET ────────────────────────────────────
+# Evita duplicação entre jobs que precisam de dotnet
+env:
+  DOTNET_VERSION: '8.0.x'
+  SOLUTION: BuscaPreco.sln
+
+# ─── Condições globais ────────────────────────────────────────────────────────
+# Centraliza a lógica de quando rodar CI
 jobs:
-  build_test:
-    name: Build and Test (.NET 8)
+
+  # ── 1. Restore ───────────────────────────────────────────────────────────────
+  restore:
+    name: Restore dependencies
     runs-on: windows-latest
     if: |
       startsWith(github.ref, 'refs/heads/feature/') ||
       startsWith(github.ref, 'refs/heads/release/') ||
-      github.ref == 'refs/heads/main' ||
-      github.ref == 'refs/heads/master' ||
+      github.ref == 'refs/heads/main'                ||
+      github.ref == 'refs/heads/master'              ||
       (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'develop')
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore
-        run: dotnet restore BuscaPreco.sln
+        run: dotnet restore ${{ env.SOLUTION }}
+
+      # Cache para os próximos jobs (padrão de mercado)
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+  # ── 2. Build ─────────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: windows-latest
+    needs: restore
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
 
       - name: Build
-        run: dotnet build BuscaPreco.sln --configuration Release --no-restore
+        run: dotnet build ${{ env.SOLUTION }} --configuration Release --no-restore
+
+      # Publica artefatos de build para reuso nos jobs de test
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: '**/bin/Release/**'
+          retention-days: 1
+
+  # ── 3. Unit + Integration Tests ───────────────────────────────────────────────
+  test:
+    name: Test (unit + integration)
+    runs-on: windows-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
 
       - name: Test
-        run: dotnet test BuscaPreco.sln --configuration Release --no-build --verbosity normal
+        run: >
+          dotnet test ${{ env.SOLUTION }}
+          --configuration Release
+          --no-build
+          --verbosity normal
+          --logger "trx;LogFileName=test-results.trx"
+          --results-directory ./test-results
 
-      - name: Test E2E (socket + DBF)
-        run: dotnet test BuscaPreco/tests/BuscaPreco.E2E/BuscaPreco.E2E.csproj --configuration Release --no-build --verbosity normal
+      - name: Upload test results
+        if: always()           # publica mesmo se os testes falharem
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ./test-results/*.trx
 
-  security_scan_and_release_pr:
-    name: Security Scan + Open PR develop -> release/*
+  # ── 4. E2E Tests ─────────────────────────────────────────────────────────────
+  test-e2e:
+    name: Test E2E (socket + DBF)
     runs-on: windows-latest
-    needs: build_test
-    if: |
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.base.ref == 'develop' &&
-      github.event.action == 'closed' &&
-      github.event.pull_request.merged == true
+    needs: build
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Simulated security scan
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+
+      - name: Test E2E
+        run: >
+          dotnet test BuscaPreco/tests/BuscaPreco.E2E/BuscaPreco.E2E.csproj
+          --configuration Release
+          --no-build
+          --verbosity normal
+          --logger "trx;LogFileName=e2e-results.trx"
+          --results-directory ./test-results
+
+      - name: Upload E2E results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-e2e-results
+          path: ./test-results/*.trx
+
+  # ── 5. Security Scan ─────────────────────────────────────────────────────────
+  security-scan:
+    name: Security scan (SAST + deps)
+    runs-on: windows-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Simulated SAST / dependency check
         run: echo "[SECURITY SCAN] Running SAST/dependency checks (simulado)."
 
-      - name: Prepare release branch name from date
+      # Substitua pela action real quando quiser, ex:
+      # - uses: aquasecurity/trivy-action@master
+      #   with:
+      #     scan-type: 'fs'
+      #     scan-ref: '.'
+      #     severity: 'HIGH,CRITICAL'
+
+  # ── 6. Release PR (develop → release/*) ─────────────────────────────────────
+  release-pr:
+    name: Open PR develop → release/*
+    runs-on: windows-latest
+    needs: [test, test-e2e, security-scan]
+    if: |
+      github.event_name == 'pull_request'                   &&
+      github.event.pull_request.base.ref == 'develop'       &&
+      github.event.action == 'closed'                        &&
+      github.event.pull_request.merged == true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare release branch name
         id: release_branch
         shell: pwsh
         run: |
           $name = "release/" + (Get-Date -Format "yyyy.MM.dd")
           "name=$name" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
-      - name: Ensure GitHub CLI auth
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh auth status
 
       - name: Create release branch (if not exists)
         shell: pwsh
@@ -89,99 +201,85 @@ jobs:
             git push origin $branch
           }
 
-      - name: Create PR develop -> release (best effort)
+      - name: Create PR develop → release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $branch = "${{ steps.release_branch.outputs.name }}"
-          $title = "chore(release): promote develop to $branch"
-          $body = "PR automática criada após merge em develop."
+          $title  = "chore(release): promote develop to $branch"
+          $body   = "PR automática criada após merge em develop."
 
           $result = gh pr create --base $branch --head develop --title $title --body $body 2>&1
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host $result
+          if ($LASTEXITCODE -eq 0) { Write-Host $result; exit 0 }
+
+          $err = $result -join "`n"
+          if ($err -match "already exists|not permitted") {
+            Write-Warning "PR já existe ou sem permissão. Seguindo."
             exit 0
           }
+          Write-Error "Erro ao criar PR: $err"; exit 1
 
-          $errorText = $result -join "`n"
-
-          if ($errorText -match "already exists") {
-            Write-Warning "PR develop -> $branch já existe. Seguindo sem falhar."
-            exit 0
-          }
-
-          if ($errorText -match "not permitted to create or approve pull requests") {
-            Write-Warning "Token atual não possui permissão para criar PR via GitHub Actions. Seguindo sem falhar."
-            exit 0
-          }
-
-          Write-Error "Falha ao criar PR automaticamente: $errorText"
-          exit 1
-
-  tag_release:
-    name: Auto-increment tag v0.0.* on main/master
+  # ── 7. Tag Release (main/master) ─────────────────────────────────────────────
+  tag-release:
+    name: Auto-increment tag v0.0.*
     runs-on: windows-latest
-    needs: build_test
+    needs: [test, test-e2e, security-scan]
     if: |
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Create next tag (v0.0.*)
+      - name: Create next tag
         shell: pwsh
         run: |
           git fetch --tags --force
+          $maxPatch = git tag -l "v0.0.*" |
+            Where-Object { $_ -match '^v0\.0\.(\d+)$' } |
+            ForEach-Object { [int]$matches[1] } |
+            Measure-Object -Maximum | Select-Object -ExpandProperty Maximum
 
-          $existingTags = git tag -l "v0.0.*"
-          $maxPatch = 0
+          $next = if ($maxPatch) { $maxPatch + 1 } else { 1 }
+          $tag  = "v0.0.$next"
 
-          foreach ($tag in $existingTags) {
-            if ($tag -match '^v0\.0\.(\d+)$') {
-              $patch = [int]$matches[1]
-              if ($patch -gt $maxPatch) {
-                $maxPatch = $patch
-              }
-            }
-          }
-
-          $nextPatch = $maxPatch + 1
-          $newTag = "v0.0.$nextPatch"
-
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag $tag
+          git push origin $tag
+          Write-Host "Tagged $tag"
 
-          Write-Host "Creating tag $newTag"
-          git tag $newTag
-          git push origin $newTag
-
-  publish_release:
-    name: Publish win-x64 and create GitHub Release
+  # ── 8. Publish Release ───────────────────────────────────────────────────────
+  publish-release:
+    name: Publish win-x64 + GitHub Release
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Publish self-contained binary (win-x64)
+      - name: Publish self-contained (win-x64)
         run: |
-          dotnet restore BuscaPreco.sln
-          dotnet publish BuscaPreco/BuscaPreco.csproj --configuration Release --runtime win-x64 --self-contained true --output ./publish/win-x64
+          dotnet restore ${{ env.SOLUTION }}
+          dotnet publish BuscaPreco/BuscaPreco.csproj \
+            --configuration Release \
+            --runtime win-x64 \
+            --self-contained true \
+            --output ./publish/win-x64
 
-      - name: Package published output
+      - name: Package artifact
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          Compress-Archive -Path ./publish/win-x64/* -DestinationPath ./artifacts/BuscaPreco-${{ github.ref_name }}-win-x64.zip -Force
+          Compress-Archive `
+            -Path ./publish/win-x64/* `
+            -DestinationPath ./artifacts/BuscaPreco-${{ github.ref_name }}-win-x64.zip `
+            -Force
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
