@@ -72,13 +72,13 @@ public class BuscaPrecoSocketE2ETests
         await WriteAsciiAsync(stream, "#TM|1.0");
 
         Assert.Contains("#config02?", await ReadAsciiAsync(stream));
-        await WriteAsciiAsync(stream, "#config02");
+        await WriteAsciiAsync(stream, BuildConfigResponse());
 
         Assert.Contains("#paramconfig?", await ReadAsciiAsync(stream));
-        await WriteAsciiAsync(stream, "#paramconfig");
+        await WriteAsciiAsync(stream, BuildParamResponse());
 
         Assert.Contains("#updconfig?", await ReadAsciiAsync(stream));
-        await WriteAsciiAsync(stream, "#updconfig");
+        await WriteAsciiAsync(stream, BuildUpdateResponse());
 
         await Task.Delay(200);
         await WriteAsciiAsync(stream, "20001");
@@ -90,6 +90,22 @@ public class BuscaPrecoSocketE2ETests
         servidor.stopServer();
 #pragma warning restore CS0612
         Log.CloseAndFlush();
+    }
+
+
+    private static string BuildConfigResponse()
+    {
+        return "#reconf02" + "00000000";
+    }
+
+    private static string BuildParamResponse()
+    {
+        return "#rparamconfig" + "00";
+    }
+
+    private static string BuildUpdateResponse()
+    {
+        return "#rupdconfig" + "000000";
     }
 
     private static async Task<string> ReadAsciiAsync(NetworkStream stream, int timeoutMs = 3000)
