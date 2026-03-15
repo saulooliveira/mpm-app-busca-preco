@@ -86,13 +86,35 @@ jobs:
             git push origin $branch
           }
 
-      - name: Create PR develop -> release
+      - name: Create PR develop -> release (best effort)
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $branch = "${{ steps.release_branch.outputs.name }}"
-          gh pr create --base $branch --head develop --title "chore(release): promote develop to $branch" --body "PR automática criada após merge em develop."
+          $title = "chore(release): promote develop to $branch"
+          $body = "PR automática criada após merge em develop."
+
+          $result = gh pr create --base $branch --head develop --title $title --body $body 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host $result
+            exit 0
+          }
+
+          $errorText = $result -join "`n"
+
+          if ($errorText -match "already exists") {
+            Write-Warning "PR develop -> $branch já existe. Seguindo sem falhar."
+            exit 0
+          }
+
+          if ($errorText -match "not permitted to create or approve pull requests") {
+            Write-Warning "Token atual não possui permissão para criar PR via GitHub Actions. Seguindo sem falhar."
+            exit 0
+          }
+
+          Write-Error "Falha ao criar PR automaticamente: $errorText"
+          exit 1
 
   tag_release:
     name: Auto-increment tag v0.0.* on main/master
