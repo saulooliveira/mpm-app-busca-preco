@@ -22,7 +22,7 @@ public class BuscaPrecoSocketE2ETests
     [Fact]
     public async Task Deve_ConsultarProdutoNoDbf_E_RetornarRespostaCorretaViaSocket()
     {
-        Log.Logger = new LoggerConfiguration().MinimumLevel.Debug().WriteTo.Console().CreateLogger();
+        Log.Logger = new LoggerConfiguration().MinimumLevel.Debug().CreateLogger();
 
         var logger = new Logger();
         var fixtureDbfPath = MaterializarFixtureDbf();
@@ -86,9 +86,9 @@ public class BuscaPrecoSocketE2ETests
         var resposta = await ReadAsciiAsync(stream, timeoutMs: 5000);
         Assert.Equal("#PRODUTO TESTE E2E|12,34", resposta);
 
-#pragma warning disable CS0618
+#pragma warning disable CS0612
         servidor.stopServer();
-#pragma warning restore CS0618
+#pragma warning restore CS0612
         Log.CloseAndFlush();
     }
 
