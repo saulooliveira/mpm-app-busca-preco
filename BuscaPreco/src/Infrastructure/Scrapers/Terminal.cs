@@ -176,8 +176,8 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 Socket.Select(listaSock, null, null, 5 * 1000000); // impõe um timeout para a leitura
                 if (listaSock.Count == 1)// se o terminal enviou algo
                 {
-                    sock.Receive(dados);// faz a leitura
-                    comando = new System.Text.ASCIIEncoding().GetString(dados);// converte os bytes para texto
+                    int bytesRecebidos = sock.Receive(dados);// faz a leitura
+                    comando = new System.Text.ASCIIEncoding().GetString(dados, 0, bytesRecebidos);// converte apenas os bytes recebidos para texto
                     return 0; //  retorna OK
                 }
                 return 1;// caso ocorreu o timeout retorna 1
