@@ -101,7 +101,6 @@ jobs:
     runs-on: windows-latest
     needs: build_test
     if: |
-      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')) ||
       (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'develop' && github.event.action == 'closed' && github.event.pull_request.merged == true) ||
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
     outputs:
@@ -214,36 +213,50 @@ jobs:
 
   # ═══════════════════════════════════════════════════════════════════════════
   # JOB 3 — Criar ou atualizar PR: feature → develop
+  # Roda em todo push em feature/**.
+  # Não depende do calculate_version (que só roda após merge em develop).
+  # Lê o arquivo VERSION para exibir a versão prevista no body do PR.
   # ═══════════════════════════════════════════════════════════════════════════
   feature_pr:
     name: Create or Update PR feature -> develop
     runs-on: windows-latest
-    needs: calculate_version
+    needs: build_test
     if: |
       github.event_name == 'push' &&
       startsWith(github.ref, 'refs/heads/feature/')
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read current VERSION
+        id: ver
+        shell: pwsh
+        run: |
+          $raw = "0.0.0"
+          if (Test-Path VERSION) { $raw = (Get-Content VERSION -Raw).Trim() }
+          "current=$raw" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "VERSION atual: $raw"
+
       - name: Create or update PR feature -> develop
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $featureBranch = "${{ github.ref_name }}"
-          $nextVersion   = "${{ needs.calculate_version.outputs.next_version }}"
-          $releaseBranch = "${{ needs.calculate_version.outputs.release_branch }}"
-          $shortSha      = "${{ github.sha }}".Substring(0,7)
+          $featureBranch  = "${{ github.ref_name }}"
+          $currentVersion = "${{ steps.ver.outputs.current }}"
+          $shortSha       = "${{ github.sha }}".Substring(0,7)
 
           $title = "feat: merge $featureBranch into develop"
           $body  = @"
           ## PR automático — feature → develop
 
-          | Campo           | Valor              |
-          |-----------------|--------------------|
-          | Feature branch  | ``$featureBranch`` |
-          | Próxima versão  | ``$nextVersion``   |
-          | Release branch  | ``$releaseBranch`` |
-          | Último commit   | ``$shortSha``      |
+          | Campo              | Valor                  |
+          |--------------------|------------------------|
+          | Feature branch     | ``$featureBranch``     |
+          | Versão no VERSION  | ``$currentVersion``    |
+          | Último commit      | ``$shortSha``          |
 
+          > A versão exata do release será calculada no momento do merge em develop.
           > Atualizado automaticamente a cada push em ``$featureBranch``.
           "@
 
