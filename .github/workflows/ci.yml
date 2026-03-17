@@ -282,11 +282,19 @@ jobs:
             gh pr edit $existing --title $title --body $body
           } else {
             Write-Host "Criando novo PR..."
+            # Verifica se há commits entre a feature e develop antes de criar o PR
+            $commits = git log origin/develop..origin/$featureBranch --oneline 2>$null
+            if (-not $commits) {
+              Write-Warning "Nenhum commit entre $featureBranch e develop — PR não criado."
+              exit 0
+            }
+
             $result = gh pr create --base develop --head $featureBranch --title $title --body $body 2>&1
             if ($LASTEXITCODE -ne 0) {
               $err = $result -join "`n"
               if ($err -match "already exists") { Write-Warning "PR já existe (race condition). Ignorando."; exit 0 }
               if ($err -match "not permitted")   { Write-Warning "Token sem permissão. Ignorando."; exit 0 }
+              if ($err -match "No commits between") { Write-Warning "Branches idênticas — PR não criado."; exit 0 }
               Write-Error "Falha ao criar PR: $err"; exit 1
             }
             Write-Host $result
@@ -347,21 +355,7 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.app_token.outputs.token }}
 
-      - name: Create release branch (if not exists)
-        shell: pwsh
-        run: |
-          $branch = "${{ needs.calculate_version.outputs.release_branch }}"
-          git fetch origin --prune
-          $remote = git ls-remote --heads origin $branch
-          if (-not $remote) {
-            Write-Host "Criando branch $branch a partir de develop..."
-            git checkout -b $branch origin/develop
-            git push origin $branch
-          } else {
-            Write-Host "Branch $branch já existe. Nenhuma ação necessária."
-          }
-
-      - name: Create PR develop -> release
+      - name: Sync release branch and manage PR develop -> release
         shell: pwsh
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
@@ -369,26 +363,62 @@ jobs:
           $branch  = "${{ needs.calculate_version.outputs.release_branch }}"
           $version = "${{ needs.calculate_version.outputs.next_version }}"
 
+          git fetch origin --prune --tags
+
+          # ── Se a tag já existe, esta versão já foi lançada — nada a fazer ──
+          $tagExists = git tag -l $version
+          if ($tagExists) {
+            Write-Host "Tag $version já existe — release já realizado. Nenhuma ação necessária."
+            exit 0
+          }
+
           $title = "chore(release): promote develop to $branch"
           $body  = @"
           ## Release $version
 
-          PR automática criada após merge em develop.
+          PR automática — acumulada a cada merge em develop.
 
           | Campo          | Valor        |
           |----------------|--------------|
           | Versão         | ``$version`` |
           | Branch release | ``$branch``  |
 
-          > Após o merge será aberto automaticamente o PR ``$branch → main``.
+          > Após o merge será aberto automaticamente o PR ``$branch → master``.
           "@
 
+          # ── Garante que a branch release existe ─────────────────────────────
+          $remote = git ls-remote --heads origin $branch
+          if (-not $remote) {
+            Write-Host "Criando branch $branch a partir de develop..."
+            git checkout -b $branch origin/develop
+            git push origin $branch
+          } else {
+            Write-Host "Branch $branch já existe."
+          }
+
+          # ── Verifica se há commits novos em develop vs release ───────────────
+          $commits = git log origin/$branch..origin/develop --oneline 2>$null
+          if (-not $commits) {
+            Write-Warning "Nenhum commit novo entre develop e $branch — nada a fazer."
+            exit 0
+          }
+
+          # ── Cria PR se não existir, atualiza body se já existir ─────────────
+          $existing = gh pr list --head develop --base $branch --state open --json number --jq '.[0].number' 2>$null
+          if ($existing) {
+            Write-Host "PR #$existing já existe — atualizando body com commits acumulados..."
+            gh pr edit $existing --title $title --body $body
+            exit 0
+          }
+
+          Write-Host "Criando PR develop -> $branch..."
           $result = gh pr create --base $branch --head develop --title $title --body $body 2>&1
           if ($LASTEXITCODE -eq 0) { Write-Host $result; exit 0 }
 
           $err = $result -join "`n"
-          if ($err -match "already exists") { Write-Warning "PR já existe. Ignorando."; exit 0 }
-          if ($err -match "not permitted")   { Write-Warning "Token sem permissão. Ignorando."; exit 0 }
+          if ($err -match "already exists")      { Write-Warning "PR já existe (race condition). Ignorando."; exit 0 }
+          if ($err -match "not permitted")        { Write-Warning "Token sem permissão. Ignorando."; exit 0 }
+          if ($err -match "No commits between")   { Write-Warning "Branches idênticas — PR não criado."; exit 0 }
           Write-Error "Falha ao criar PR: $err"; exit 1
 
       - name: Notify failure
@@ -402,10 +432,10 @@ jobs:
           gh pr comment $pr --body "❌ **create_release_pr falhou**. [Ver logs]($run)"
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # JOB 6 — Abrir PR release → main
+  # JOB 6 — Abrir PR release → master
   # ═══════════════════════════════════════════════════════════════════════════
   release_to_main_pr:
-    name: Open PR release -> main
+    name: Open PR release -> master
     runs-on: windows-latest
     if: |
       github.event_name == 'pull_request' &&
@@ -413,10 +443,18 @@ jobs:
       github.event.action == 'closed' &&
       github.event.pull_request.merged == true
     steps:
+      - name: Generate GitHub App token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ steps.app_token.outputs.token }}
 
       - name: Detect default branch (main or master)
         id: default_branch
@@ -458,12 +496,20 @@ jobs:
           $existing = gh pr list --head $releaseBranch --base $mainBranch --state open --json number --jq '.[0].number' 2>$null
           if ($existing) { Write-Host "PR #$existing já existe."; exit 0 }
 
+          # Verifica se há commits entre a release branch e main antes de criar o PR
+          $commits = git log origin/$mainBranch..origin/$releaseBranch --oneline 2>$null
+          if (-not $commits) {
+            Write-Warning "Nenhum commit entre $releaseBranch e $mainBranch — PR não criado (branches idênticas)."
+            exit 0
+          }
+
           $result = gh pr create --base $mainBranch --head $releaseBranch --title $title --body $body 2>&1
           if ($LASTEXITCODE -eq 0) { Write-Host $result; exit 0 }
 
           $err = $result -join "`n"
           if ($err -match "already exists") { Write-Warning "PR já existe. Ignorando."; exit 0 }
           if ($err -match "not permitted")   { Write-Warning "Token sem permissão. Ignorando."; exit 0 }
+          if ($err -match "No commits between") { Write-Warning "Branches idênticas — PR não criado."; exit 0 }
           Write-Error "Falha ao criar PR: $err"; exit 1
 
       - name: Notify failure
