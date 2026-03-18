@@ -1,0 +1,191 @@
+name: BuscaPreco CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: write
+
+jobs:
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 1 — Build and Test
+  # ═══════════════════════════════════════════════════════════════
+  build_test:
+    name: "1 - Build and Test"
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - run: dotnet restore BuscaPreco.sln
+      - run: dotnet build  BuscaPreco.sln --configuration Release --no-restore
+      - run: dotnet test   BuscaPreco.sln --configuration Release --no-build
+
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          name: build-output
+          path: |
+            **/bin/Release/**
+            **/obj/Release/**
+          retention-days: 1
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 2 — Tag and Release
+  # ═══════════════════════════════════════════════════════════════
+  release:
+    name: "2 - Tag and Release"
+    runs-on: windows-latest
+    needs: build_test
+    timeout-minutes: 20
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    concurrency:
+      group: release-${{ github.repository }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Generate GitHub App token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app_token.outputs.token }}
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+
+      - name: Cache NuGet packages (win-x64)
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-win-x64-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-win-x64-
+            nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore BuscaPreco.sln --runtime win-x64
+
+      - name: Tag, publish and bump VERSION
+        shell: pwsh
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --tags --force
+
+          $raw = (Get-Content VERSION -Raw).Trim()
+          if ($raw -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
+            Write-Error "VERSION inválido: $raw"; exit 1
+          }
+          $tag = "v$raw"
+
+          $exists = git ls-remote --tags origin "refs/tags/$tag"
+          if (-not $exists) {
+            git tag $tag
+            git push origin $tag
+            Write-Host "Tag $tag criada."
+          } else {
+            Write-Host "Tag $tag já existe — skip."
+          }
+
+          $major = [int]$Matches[1]; $minor = [int]$Matches[2]; $patch = [int]$Matches[3] + 1
+          if ($patch -ge 100) { $patch = 0; $minor++ }
+          if ($minor -ge 10)  { $minor = 0; $major++ }
+          $next = "$major.$minor.$patch"
+
+          $remoteVer = git show origin/main:VERSION 2>$null
+          if ($remoteVer -and $remoteVer.Trim() -eq $next) {
+            Write-Host "VERSION já é $next — skip commit."; exit 0
+          }
+          $next | Out-File VERSION -Encoding utf8 -NoNewline
+          git add VERSION
+          git commit -m "chore(version): bump to $next [skip ci]"
+
+          for ($i = 1; $i -le 3; $i++) {
+            git pull --rebase origin main
+            if ((git push origin HEAD) -and $?) { Write-Host "VERSION atualizado."; exit 0 }
+            Start-Sleep -Seconds (5 * $i)
+          }
+          Write-Error "Push falhou após 3 tentativas."; exit 1
+
+      - name: Generate CHANGELOG with git-cliff
+        uses: orhun/git-cliff-action@v3
+        id: cliff
+        with:
+          config: cliff.toml
+          args: --verbose --tag ${{ github.ref_name }}
+        env:
+          OUTPUT: CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Commit updated CHANGELOG.md
+        shell: pwsh
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          $diff = git diff --cached --name-only
+          if (-not $diff) { Write-Host "CHANGELOG sem alterações — skip."; exit 0 }
+          git commit -m "docs(changelog): update for ${{ github.ref_name }} [skip ci]"
+          for ($i = 1; $i -le 3; $i++) {
+            git pull --rebase origin main
+            if ((git push origin HEAD:main) -and $?) { Write-Host "CHANGELOG publicado."; exit 0 }
+            Start-Sleep -Seconds (5 * $i)
+          }
+          Write-Error "Push do CHANGELOG falhou após 3 tentativas."; exit 1
+
+      - name: Package win-x64
+        shell: pwsh
+        run: |
+          New-Item -Force -ItemType Directory artifacts | Out-Null
+          Compress-Archive `
+            -Path ./publish/win-x64/* `
+            -DestinationPath ./artifacts/BuscaPreco-${{ github.ref_name }}-win-x64.zip `
+            -Force
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./artifacts/*.zip
+          body: ${{ steps.cliff.outputs.content }}
+
+      - name: Notify and clean up on failure
+        if: failure()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          gh release delete $tag --yes 2>$null
+          echo "::error::release falhou para $tag. Release removido. Ver: $run"
