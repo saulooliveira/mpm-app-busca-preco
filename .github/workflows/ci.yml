@@ -652,7 +652,7 @@ jobs:
           restore-keys: nuget-${{ runner.os }}-
 
       - name: Restore
-        run: dotnet restore BuscaPreco.sln
+        run: dotnet restore BuscaPreco/BuscaPreco.csproj --runtime win-x64
 
       - name: Test before publish
         run: dotnet test BuscaPreco.sln --configuration Release --verbosity normal
