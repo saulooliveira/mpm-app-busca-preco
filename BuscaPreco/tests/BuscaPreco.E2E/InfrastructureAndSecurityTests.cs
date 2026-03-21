@@ -81,8 +81,8 @@ public class InfrastructureAndSecurityTests
     [Trait("Security", "Risk")]
     public void Deve_EvidenciarRiscoDeTransporteSemAutenticacao_Quando_AvaliarImplementacaoSocketAtual()
     {
-        var servidorPath = Path.Combine("..", "..", "..", "..", "src", "Infrastructure", "Scrapers", "Servidor.cs");
-        var terminalPath = Path.Combine("..", "..", "..", "..", "src", "Infrastructure", "Scrapers", "Terminal.cs");
+        var servidorPath = Path.Combine("..", "..", "..", "..", "..", "src", "Infrastructure", "Scrapers", "Servidor.cs");
+        var terminalPath = Path.Combine("..", "..", "..", "..", "..", "src", "Infrastructure", "Scrapers", "Terminal.cs");
 
         var servidorCode = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, servidorPath)));
         var terminalCode = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, terminalPath)));

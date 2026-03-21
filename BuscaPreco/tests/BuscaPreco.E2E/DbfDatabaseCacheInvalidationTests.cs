@@ -21,7 +21,7 @@ public class DbfDatabaseCacheInvalidationTests
         // Assert.Equal(12.34m, antes.vlrVenda1);
 
         // Setup crítico: altera bytes em posição textual do registro DBF e atualiza timestamp.
-        SubstituirTextoNoArquivo(sourceDbfPath, "PRODUTO TESTE E2E", "PRODUTO ALTERADO  ");
+        SubstituirTextoNoArquivo(sourceDbfPath, "PRODUTO TESTE E2E", "PRODUTO ALTERADO ");
         Thread.Sleep(1200);
         File.SetLastWriteTime(sourceDbfPath, DateTime.Now.AddSeconds(1));
 
