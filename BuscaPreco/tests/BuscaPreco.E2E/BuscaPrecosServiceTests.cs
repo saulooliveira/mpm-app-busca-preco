@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using AppLogger = BuscaPreco.CrossCutting.Logger;
 
 namespace BuscaPreco.E2E;
 
@@ -75,7 +76,7 @@ public class BuscaPrecosServiceTests
             new NullProdutoCacheTracker(),
             new NullTerminalActivityMonitor(),
             Options.Create(new FeatureConfig { CacheTTLMinutes = cacheTtlMinutes }),
-            new Logger());
+            new AppLogger());
     }
 
     private sealed class FakeProdutoRepository : IProdutoRepository
