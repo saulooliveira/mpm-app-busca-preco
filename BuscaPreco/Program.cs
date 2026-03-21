@@ -25,8 +25,40 @@ namespace BuscaPreco
             System.Windows.Forms.Application.EnableVisualStyles();
             System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
 
-            var host = CreateHost();
-            host.Start();
+            IHost host;
+
+            try
+            {
+                host = CreateHost();
+                host.Start();
+            }
+            catch (DbfNotFoundException ex)
+            {
+                System.Windows.Forms.MessageBox.Show(
+                    $"Não foi possível iniciar o BuscaPreço.
+
+" +
+                    $"O arquivo de cadastro não foi encontrado:
+{ex.FilePath}
+
+" +
+                    $"Verifique o caminho configurado em config.yaml e tente novamente.",
+                    "BuscaPreço — Erro de inicialização",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+                return;
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show(
+                    $"Erro inesperado ao iniciar o BuscaPreço:
+
+{ex.Message}",
+                    "BuscaPreço — Erro",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+                return;
+            }
 
             var trayContext = host.Services.GetRequiredService<TrayApplicationContext>();
             System.Windows.Forms.Application.Run(trayContext);

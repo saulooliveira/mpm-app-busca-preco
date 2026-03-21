@@ -30,6 +30,23 @@ public class DbfDatabaseCacheInvalidationTests
         // Assert.Equal(12.34m, depois.vlrVenda1);
     }
 
+    [Fact]
+    public void Deve_LancarDbfNotFoundException_Quando_CaminhoNaoExistir()
+    {
+        Log.Logger = new LoggerConfiguration().CreateLogger();
+
+        var caminhoInexistente = Path.Combine(
+            Path.GetTempPath(),
+            Guid.NewGuid().ToString("N") + ".dbf");
+
+        var ex = Assert.Throws<DbfNotFoundException>(
+            () => new DbfDatabase(caminhoInexistente, new Logger())
+        );
+
+        Assert.Equal(caminhoInexistente, ex.FilePath);
+        Assert.Contains(caminhoInexistente, ex.Message);
+    }
+
     private static string CriarDbfTemporario()
     {
         var fixturesDir = Path.Combine(AppContext.BaseDirectory, "Fixtures");

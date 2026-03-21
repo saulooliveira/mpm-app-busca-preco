@@ -5,6 +5,7 @@
     using BuscaPreco.CrossCutting;
     using BuscaPreco.Domain.Entities;
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.IO;
     public class DbfFileManager
@@ -62,7 +63,8 @@
     public class DbfDatabase
     {
         private readonly string _dbfFilePath;
-        private static Dictionary<string, (string des, decimal vlrVenda1)> _cache;
+        private readonly ConcurrentDictionary<string, (string des, decimal vlrVenda1)> _cache
+            = new ConcurrentDictionary<string, (string des, decimal vlrVenda1)>();
         private DateTime _ultimaDataModificacao;
         private DbfFileManager dbfFileManager;
         private Logger logger;
@@ -72,9 +74,8 @@
 
             if (!File.Exists(dbfFilePath))
             {
-                logger.Info($"Caminho não existe {dbfFilePath}");
-                System.Windows.Forms.MessageBox.Show(_dbfFilePath);
-                throw new Exception();
+                logger.Info($"Arquivo DBF não encontrado: {dbfFilePath}");
+                throw new DbfNotFoundException(dbfFilePath);
             }
 
             // Crie uma instância do DbfFileManager passando o logger
@@ -82,7 +83,6 @@
 
             // Chame o método para copiar se modificado
             _dbfFilePath = dbfFileManager.CopyIfModified(); 
-            _cache = new Dictionary<string, (string des, decimal vlrVenda1)>();
             _ultimaDataModificacao = File.GetLastWriteTime(_dbfFilePath);
             logger.Info($"ultimaDataModificacao {_ultimaDataModificacao}");
         }
