@@ -133,7 +133,7 @@ public class BuscaPrecoSocketE2ETests
         Log.Information("Socket readable: {Readable}, Socket writable: {Writable}", stream.CanRead, stream.CanWrite);
         
         var resposta = await ReadAsciiAsync(stream, timeoutMs: 5000);
-        Assert.Equal("", resposta);
+        Assert.Contains("#PRODUTO TESTE E2E|12,34", resposta);
 
 #pragma warning disable CS0612
         servidor.stopServer();
