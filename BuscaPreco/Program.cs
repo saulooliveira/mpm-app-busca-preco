@@ -89,9 +89,11 @@ namespace BuscaPreco
                     services.Configure<TerminalConfig>(context.Configuration.GetSection("Terminal"));
                     services.Configure<EmailConfig>(context.Configuration.GetSection("Email"));
                     services.Configure<FeatureConfig>(context.Configuration.GetSection("Features"));
+                    services.Configure<ProdutosFixadosConfig>(context.Configuration.GetSection("ProdutosFixados"));
 
                     services.AddSingleton(sp => sp.GetRequiredService<IOptions<DbfConfig>>().Value);
                     services.AddSingleton<Logger>();
+                    services.AddSingleton<YamlConfigWriter>();
                     services.AddSingleton<Servidor>();
 
                     services.AddSingleton<DbfDatabase>(sp =>

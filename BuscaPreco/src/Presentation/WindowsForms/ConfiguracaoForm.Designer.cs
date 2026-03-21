@@ -85,6 +85,14 @@
             this.label9 = new System.Windows.Forms.Label();
             this.label8 = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
+            this.tabPagePromocoes = new System.Windows.Forms.TabPage();
+            this.txtBuscaProduto = new System.Windows.Forms.TextBox();
+            this.listBuscaResultados = new System.Windows.Forms.ListBox();
+            this.btnAdicionarFixado = new System.Windows.Forms.Button();
+            this.listFixados = new System.Windows.Forms.ListBox();
+            this.btnRemoverFixado = new System.Windows.Forms.Button();
+            this.btnLimparFixados = new System.Windows.Forms.Button();
+            this.btnSalvarFixados = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
@@ -642,6 +650,54 @@
             this.label7.TabIndex = 0;
             this.label7.Text = "IP Servidor:";
             // 
+            // tabPagePromocoes
+            // 
+            this.tabPagePromocoes.Text = "Promoções";
+            this.tabPagePromocoes.UseVisualStyleBackColor = true;
+            this.tabPagePromocoes.Location = new System.Drawing.Point(4, 22);
+            this.tabPagePromocoes.Size = new System.Drawing.Size(422, 301);
+            this.tabPagePromocoes.TabIndex = 3;
+            // 
+            // txtBuscaProduto
+            // 
+            this.txtBuscaProduto.Location = new System.Drawing.Point(6, 8);
+            this.txtBuscaProduto.Size = new System.Drawing.Size(300, 20);
+            this.txtBuscaProduto.PlaceholderText = "Buscar produto por nome...";
+            // 
+            // listBuscaResultados
+            // 
+            this.listBuscaResultados.Location = new System.Drawing.Point(6, 34);
+            this.listBuscaResultados.Size = new System.Drawing.Size(300, 100);
+            // 
+            // btnAdicionarFixado
+            // 
+            this.btnAdicionarFixado.Text = "Adicionar ↓";
+            this.btnAdicionarFixado.Location = new System.Drawing.Point(312, 34);
+            this.btnAdicionarFixado.Size = new System.Drawing.Size(100, 24);
+            // 
+            // listFixados
+            // 
+            this.listFixados.Location = new System.Drawing.Point(6, 145);
+            this.listFixados.Size = new System.Drawing.Size(300, 100);
+            // 
+            // btnRemoverFixado
+            // 
+            this.btnRemoverFixado.Text = "Remover";
+            this.btnRemoverFixado.Location = new System.Drawing.Point(312, 145);
+            this.btnRemoverFixado.Size = new System.Drawing.Size(100, 24);
+            // 
+            // btnLimparFixados
+            // 
+            this.btnLimparFixados.Text = "Limpar tudo";
+            this.btnLimparFixados.Location = new System.Drawing.Point(312, 175);
+            this.btnLimparFixados.Size = new System.Drawing.Size(100, 24);
+            // 
+            // btnSalvarFixados
+            // 
+            this.btnSalvarFixados.Text = "Salvar promoções";
+            this.btnSalvarFixados.Location = new System.Drawing.Point(6, 255);
+            this.btnSalvarFixados.Size = new System.Drawing.Size(406, 30);
+            // 
             // ConfiguracaoForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -666,6 +722,22 @@
             this.groupBox5.PerformLayout();
             this.groupBox4.ResumeLayout(false);
             this.groupBox4.PerformLayout();
+            this.tabPagePromocoes.Controls.Add(this.txtBuscaProduto);
+            this.tabPagePromocoes.Controls.Add(this.listBuscaResultados);
+            this.tabPagePromocoes.Controls.Add(this.btnAdicionarFixado);
+            this.tabPagePromocoes.Controls.Add(this.listFixados);
+            this.tabPagePromocoes.Controls.Add(this.btnRemoverFixado);
+            this.tabPagePromocoes.Controls.Add(this.btnLimparFixados);
+            this.tabPagePromocoes.Controls.Add(this.btnSalvarFixados);
+
+            this.tabControl1.Controls.Add(this.tabPagePromocoes);
+
+            this.txtBuscaProduto.TextChanged += new System.EventHandler(this.txtBuscaProduto_TextChanged);
+            this.btnAdicionarFixado.Click += new System.EventHandler(this.btnAdicionarFixado_Click);
+            this.btnRemoverFixado.Click += new System.EventHandler(this.btnRemoverFixado_Click);
+            this.btnLimparFixados.Click += new System.EventHandler(this.btnLimparFixados_Click);
+            this.btnSalvarFixados.Click += new System.EventHandler(this.btnSalvarFixados_Click);
+
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
             this.ResumeLayout(false);
@@ -732,6 +804,14 @@
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.TabPage tabPagePromocoes;
+        private System.Windows.Forms.TextBox txtBuscaProduto;
+        private System.Windows.Forms.ListBox listBuscaResultados;
+        private System.Windows.Forms.Button btnAdicionarFixado;
+        private System.Windows.Forms.ListBox listFixados;
+        private System.Windows.Forms.Button btnRemoverFixado;
+        private System.Windows.Forms.Button btnLimparFixados;
+        private System.Windows.Forms.Button btnSalvarFixados;
     }
 }
 
