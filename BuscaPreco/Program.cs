@@ -34,15 +34,11 @@ namespace BuscaPreco
             }
             catch (DbfNotFoundException ex)
             {
+                string msg = "Não foi possível iniciar o BuscaPreço.\n\n" +
+                             "Arquivo de cadastro não encontrado:\n" + ex.FilePath + "\n\n" +
+                             "Verifique o caminho em config.yaml e tente novamente.";
                 System.Windows.Forms.MessageBox.Show(
-                    $"Não foi possível iniciar o BuscaPreço.
-
-" +
-                    $"O arquivo de cadastro não foi encontrado:
-{ex.FilePath}
-
-" +
-                    $"Verifique o caminho configurado em config.yaml e tente novamente.",
+                    msg,
                     "BuscaPreço — Erro de inicialização",
                     System.Windows.Forms.MessageBoxButtons.OK,
                     System.Windows.Forms.MessageBoxIcon.Error);
@@ -50,10 +46,9 @@ namespace BuscaPreco
             }
             catch (Exception ex)
             {
+                string msg = "Erro inesperado ao iniciar o BuscaPreço:\n\n" + ex.Message;
                 System.Windows.Forms.MessageBox.Show(
-                    $"Erro inesperado ao iniciar o BuscaPreço:
-
-{ex.Message}",
+                    msg,
                     "BuscaPreço — Erro",
                     System.Windows.Forms.MessageBoxButtons.OK,
                     System.Windows.Forms.MessageBoxIcon.Error);
