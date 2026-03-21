@@ -36,3 +36,6 @@ Serilog:
         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} CodigoBarras={CodigoBarras} Nome={Nome} Preco={Preco} Status={Status} {Message:lj}{NewLine}"
   Enrich:
     - FromLogContext
+
+ProdutosFixados:
+  Codigos: []

@@ -1,10 +1,14 @@
 using System;
 using System.IO;
 using System.Windows.Forms;
+using System.Linq;
+using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.CrossCutting;
 using BuscaPreco.Domain.Entities;
+using BuscaPreco.Infrastructure.Data;
 using BuscaPreco.Infrastructure.Repositories;
+using Microsoft.Extensions.Options;
 
 namespace BuscaPreco.Presentation.WindowsForms
 {
@@ -12,11 +16,16 @@ namespace BuscaPreco.Presentation.WindowsForms
     {
         private readonly Logger logger;
         private readonly IBuscaPrecosService buscaPrecosService;
+        private readonly IOptions<ProdutosFixadosConfig> _produtosFixadosOptions;
+        private readonly YamlConfigWriter _yamlConfigWriter;
 
-        public ConfiguracaoForm(Logger logger, IBuscaPrecosService buscaPrecosService)
+        public ConfiguracaoForm(Logger logger, IBuscaPrecosService buscaPrecosService,
+            IOptions<ProdutosFixadosConfig> produtosFixadosOptions, YamlConfigWriter yamlConfigWriter)
         {
             this.logger = logger;
             this.buscaPrecosService = buscaPrecosService;
+            _produtosFixadosOptions = produtosFixadosOptions;
+            _yamlConfigWriter = yamlConfigWriter;
 
             this.logger.Info("Iniciando App...");
             InitializeComponent();
@@ -32,6 +41,7 @@ namespace BuscaPreco.Presentation.WindowsForms
         private void Form1_Load(object sender, EventArgs e)
         {
             Habilita_Configuracoes(true);
+            CarregarFixadosAtuais();
         }
 
         private void bTexto_Click(object sender, EventArgs e)
@@ -196,6 +206,96 @@ namespace BuscaPreco.Presentation.WindowsForms
             lines.Add($"BuscaServidor: {conf.BuscaServidor}");
 
             File.WriteAllLines(filePath, lines);
+        }
+
+
+        private void txtBuscaProduto_TextChanged(object sender, EventArgs e)
+        {
+            var query = txtBuscaProduto.Text.Trim().ToUpperInvariant();
+            listBuscaResultados.DisplayMember = string.Empty;
+            listBuscaResultados.Items.Clear();
+            var produtos = buscaPrecosService.ListarTudo();
+            foreach (var p in produtos)
+            {
+                if (string.IsNullOrEmpty(query) ||
+                    (p.Descricao1 ?? string.Empty).ToUpperInvariant().Contains(query))
+                {
+                    listBuscaResultados.Items.Add(p);
+                }
+            }
+            listBuscaResultados.DisplayMember = "Descricao1";
+        }
+
+        private void btnAdicionarFixado_Click(object sender, EventArgs e)
+        {
+            if (listBuscaResultados.SelectedItem is BuscaPreco.Domain.Entities.Produto produto)
+            {
+                var jaExiste = listFixados.Items
+                    .Cast<BuscaPreco.Domain.Entities.Produto>()
+                    .Any(p => p.CodigoItem == produto.CodigoItem);
+                if (!jaExiste)
+                {
+                    listFixados.DisplayMember = string.Empty;
+                    listFixados.Items.Add(produto);
+                    listFixados.DisplayMember = "Descricao1";
+                }
+            }
+        }
+
+        private void btnRemoverFixado_Click(object sender, EventArgs e)
+        {
+            if (listFixados.SelectedIndex >= 0)
+            {
+                listFixados.Items.RemoveAt(listFixados.SelectedIndex);
+            }
+        }
+
+        private void btnLimparFixados_Click(object sender, EventArgs e)
+        {
+            listFixados.Items.Clear();
+        }
+
+        private void btnSalvarFixados_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var codes = listFixados.Items
+                    .Cast<BuscaPreco.Domain.Entities.Produto>()
+                    .Select(p => p.CodigoItem)
+                    .ToList();
+
+                _yamlConfigWriter.SaveProdutosFixados(codes);
+                logger.Info("Promoções salvas: {Count} produto(s) fixado(s).", codes.Count);
+                MessageBox.Show(
+                    "Promoções salvas com sucesso.",
+                    "BuscaPreço",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Erro ao salvar promoções:\n" + ex.Message,
+                    "BuscaPreço — Erro",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private void CarregarFixadosAtuais()
+        {
+            listFixados.Items.Clear();
+            var codes = _produtosFixadosOptions.Value.Codigos;
+            if (codes == null || codes.Count == 0) return;
+
+            var produtos = buscaPrecosService.ListarTudo();
+            var byCode = produtos.ToDictionary(p => p.CodigoItem);
+            foreach (var code in codes)
+            {
+                if (byCode.TryGetValue(code, out var produto))
+                    listFixados.Items.Add(produto);
+            }
+            listFixados.DisplayMember = "Descricao1";
         }
 
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
