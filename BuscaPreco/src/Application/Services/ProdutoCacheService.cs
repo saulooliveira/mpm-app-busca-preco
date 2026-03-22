@@ -26,7 +26,7 @@ namespace BuscaPreco.Application.Services
         private readonly object _syncLock = new object();
         private bool _syncInProgress;
         private bool _disposed;
-        private Timer _debounceTimer;
+        private System.Threading.Timer _debounceTimer;
         private const int DebounceMs = 3000;
 
         public ProdutoCacheService(
@@ -97,11 +97,11 @@ namespace BuscaPreco.Application.Services
         private void OnDbfChanged(object sender, FileSystemEventArgs e)
         {
             _debounceTimer?.Dispose();
-            _debounceTimer = new Timer(_ =>
+            _debounceTimer = new System.Threading.Timer(_ =>
             {
                 _logger.Info("ProdutoCacheService: DBF modificado — iniciando ressincronização.");
                 SincronizarAgora();
-            }, null, DebounceMs, Timeout.Infinite);
+            }, null, DebounceMs, System.Threading.Timeout.Infinite);
         }
 
         public ProdutoCacheEntry BuscarPorCodigo(string codigoBarras)
