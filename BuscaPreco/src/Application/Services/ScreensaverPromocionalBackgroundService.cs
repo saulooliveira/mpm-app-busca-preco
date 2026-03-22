@@ -79,12 +79,16 @@ namespace BuscaPreco.Application.Services
                                 selectedProduto = produtos.ElementAt(_random.Next(produtos.Count));
 
                             var nome = (selectedProduto.des ?? string.Empty);
-                            if (nome.Length > 20)
-                                nome = nome.Substring(0, 20);
+                            if (nome.Length > 20) nome = nome.Substring(0, 20);
 
                             var preco = selectedProduto.vlrVenda1.ToString("N2", new CultureInfo("pt-BR"));
-                            _terminalDisplayService.MostrarProdutoPromocional(nome, preco);
-                            _logger.Info("Screensaver exibiu produto promocional: {Produto} {Preco}", nome, preco);
+                            if (preco.Length > 20) preco = preco.Substring(0, 20);
+
+                            // Clamp duration to 1-9 for #mesg single-digit ASCII encoding
+                            int duracaoMesg = rotation > 9 ? 9 : (rotation < 1 ? 1 : rotation);
+
+                            _terminalDisplayService.MostrarProdutoPromocional(nome, preco, duracaoMesg);
+                            _logger.Info("Screensaver exibiu produto via #mesg: {Produto} {Preco} {Duração}s", nome, preco, duracaoMesg);
                         }
                     }
 

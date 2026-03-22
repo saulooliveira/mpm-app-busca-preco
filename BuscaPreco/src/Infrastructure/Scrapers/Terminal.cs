@@ -121,7 +121,20 @@ namespace BuscaPreco.Infrastructure.Scrapers
          Função: Envia para o terminal "produto não encontrado"
          */
         public void SendProdNFound() {
-            EnviaParaTerminal("#nfound");
+            try
+            {
+                if (!sock.Connected)
+                {
+                    System.Diagnostics.Debug.WriteLine("SendProdNFound: Socket not connected!");
+                    return;
+                }
+                EnviaParaTerminal("#nfound");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SendProdNFound Error: {ex.GetType().Name}: {ex.Message}");
+                throw;
+            }
         }
 
         /*
@@ -140,6 +153,10 @@ namespace BuscaPreco.Infrastructure.Scrapers
                     return;
                 }
                 // monta a string e envia para o terminal
+                // Manual p.34: nome máx 20 chars (1 linha × 20 colunas), preço máx 20 chars, '#' proibido no preço
+                if (desc.Length > 20) desc = desc.Substring(0, 20);
+                if (price.Length > 20) price = price.Substring(0, 20);
+                price = price.Replace("#", string.Empty); // '#' é proibido na string de preço pelo protocolo
                 string mensaje = "#" + desc + "|" + price;
                 System.Diagnostics.Debug.WriteLine($"SendProcPrice: Sending '{mensaje}'");
                 EnviaParaTerminal(mensaje);
@@ -148,6 +165,59 @@ namespace BuscaPreco.Infrastructure.Scrapers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"SendProcPrice Error: {ex.GetType().Name}: {ex.Message}");
+                throw;
+            }
+        }
+
+        /*
+         Método: SendMesg
+         Função: Envia mensagem para exibição no display do terminal via comando #mesg
+         
+         Protocolo: #mesg + (char)(len1+48) + linha1 + (char)(len2+48) + linha2
+                    + (char)(tempo+48) + (char)(48)
+         
+         Entrada: linha1 - Conteúdo da 1ª linha (máx 20 chars)
+                  linha2 - Conteúdo da 2ª linha (máx 20 chars)
+                  tempo  - Tempo de exibição em segundos (1-9; valores > 9 usam codificação hex)
+         */
+        public void SendMesg(string linha1, string linha2, int tempo)
+        {
+            try
+            {
+                if (!sock.Connected)
+                {
+                    System.Diagnostics.Debug.WriteLine("SendMesg: Socket not connected!");
+                    return;
+                }
+
+                linha1 ??= string.Empty;
+                linha2 ??= string.Empty;
+
+                // Truncate to 20 chars (terminal display limit per line)
+                if (linha1.Length > 20) linha1 = linha1.Substring(0, 20);
+                if (linha2.Length > 20) linha2 = linha2.Substring(0, 20);
+
+                // Clamp tempo to 1-9 (single ASCII digit range: char 49-57)
+                if (tempo < 1) tempo = 1;
+                if (tempo > 9) tempo = 9;
+
+                char tamLinha1 = (char)(linha1.Length + 48);
+                char tamLinha2 = (char)(linha2.Length + 48);
+                char tempoChar = (char)(tempo + 48);
+                int reservado = 48;
+
+                string comando = "#mesg" +
+                    tamLinha1 + linha1 +
+                    tamLinha2 + linha2 +
+                    tempoChar +
+                    (char)(reservado);
+
+                EnviaParaTerminal(comando);
+                System.Diagnostics.Debug.WriteLine("SendMesg: Sent '" + linha1 + "' / '" + linha2 + "' for " + tempo + "s");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("SendMesg Error: " + ex.GetType().Name + ": " + ex.Message);
                 throw;
             }
         }
@@ -237,10 +307,26 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 System.Diagnostics.Debug.WriteLine($"Terminal init response: {paraServidor}");
 
                 IP = (IPEndPoint)sock.RemoteEndPoint;// configura o IP da conexão
-                // recolhe o tipo e a versão do terminal
-                tipo = paraServidor.Substring(1, paraServidor.LastIndexOf('|') - 1);
-                versao = paraServidor.Substring(paraServidor.LastIndexOf('|') + 1);
-                System.Diagnostics.Debug.WriteLine($"Terminal type: {tipo}, version: {versao}");
+
+                // Valida e extrai tipo e versão da resposta ao #ok
+                // Esperado: #tc406|3.3.1 S  ou  #tc502|4.0
+                int separadorIdx = paraServidor == null ? -1 : paraServidor.IndexOf('|');
+                if (string.IsNullOrEmpty(paraServidor) || separadorIdx < 2)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ProcessaTerminal: resposta inválida ao #ok: '{paraServidor}'. Encerrando conexão.");
+                    sock.Close();
+                    Desconectar?.Invoke(this);
+                    return;
+                }
+                tipo = paraServidor.Substring(1, separadorIdx - 1);
+                versao = paraServidor.Substring(separadorIdx + 1).TrimEnd('\0', ' ');
+                System.Diagnostics.Debug.WriteLine($"Terminal conectado — tipo: {tipo}, versão: {versao}, IP: {IP}");
+
+                // Manual p.6: #alwayslive mantém o terminal conectado sem necessidade de #live? periódico
+                EnviaParaTerminal("#alwayslive");
+                System.Diagnostics.Debug.WriteLine("ProcessaTerminal: #alwayslive enviado.");
+                // Nota: não aguardamos a resposta #alwayslive_ok — o terminal pode demorar para responder
+                // e o próximo RecebeDoTerminal no handshake de config já drenará o buffer.
 
                 // pede a configuração do terminal
                 EnviaParaTerminal("#config02?");
@@ -283,6 +369,11 @@ namespace BuscaPreco.Infrastructure.Scrapers
                     else {// se a leitura foi efetuada com sucesso
                         if (paraServidor.CompareTo("#live") == 0)// verifica se a mensagem foi a resposta do live
                             contLive = 0; // zera a contagem do live
+                        else if (paraServidor.StartsWith("#queryprocessfailure"))// sinal interno do terminal — sem resposta ao scan dentro do prazo
+                        {
+                            System.Diagnostics.Debug.WriteLine("ProcessaTerminal: #queryprocessfailure recebido — terminal não recebeu resposta a tempo. Ignorando.");
+                            // Não propagar: não é um código de barras. Não chamar onReceive.
+                        }
                         else {// se foi qualquer outro comando
                             try
                             {

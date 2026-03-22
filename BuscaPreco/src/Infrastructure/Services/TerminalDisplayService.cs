@@ -12,9 +12,9 @@ namespace BuscaPreco.Infrastructure.Services
             _servidor = servidor;
         }
 
-        public void MostrarProdutoPromocional(string nome, string preco)
+        public void MostrarProdutoPromocional(string linha1, string linha2, int tempoSegundos)
         {
-            _servidor.BroadcastProdutoPromocional(nome, preco);
+            _servidor.BroadcastMesg(linha1, linha2, tempoSegundos);
         }
     }
 }

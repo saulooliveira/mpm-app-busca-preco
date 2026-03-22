@@ -81,6 +81,24 @@ namespace BuscaPreco.Infrastructure.Scrapers
             }
         }
 
+        public void BroadcastMesg(string linha1, string linha2, int tempoSegundos)
+        {
+            Terminal[] terminaisSnapshot;
+            lock (listaTerminaisLock)
+            {
+                terminaisSnapshot = new Terminal[listaTerminais.Count];
+                for (var i = 0; i < listaTerminais.Count; i++)
+                {
+                    terminaisSnapshot[i] = (Terminal)listaTerminais[i];
+                }
+            }
+
+            foreach (var terminal in terminaisSnapshot)
+            {
+                terminal.SendMesg(linha1, linha2, tempoSegundos);
+            }
+        }
+
         public void startServer()
         {
             Start();

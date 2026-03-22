@@ -15,6 +15,7 @@
             if (disposing && (components != null))
             {
                 components.Dispose();
+                _searchDebounceTimer?.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -122,6 +123,7 @@
             this.tabControl1.Location = new System.Drawing.Point(196, 12);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
+            this.tabControl1.SelectedIndexChanged += new System.EventHandler(this.tabControl1_SelectedIndexChanged);
             this.tabControl1.Size = new System.Drawing.Size(430, 327);
             this.tabControl1.TabIndex = 3;
             // 
@@ -733,6 +735,7 @@
             this.tabControl1.Controls.Add(this.tabPagePromocoes);
 
             this.txtBuscaProduto.TextChanged += new System.EventHandler(this.txtBuscaProduto_TextChanged);
+            this.txtBuscaProduto.Leave += new System.EventHandler(this.txtBuscaProduto_Leave);
             this.btnAdicionarFixado.Click += new System.EventHandler(this.btnAdicionarFixado_Click);
             this.btnRemoverFixado.Click += new System.EventHandler(this.btnRemoverFixado_Click);
             this.btnLimparFixados.Click += new System.EventHandler(this.btnLimparFixados_Click);
@@ -814,4 +817,3 @@
         private System.Windows.Forms.Button btnSalvarFixados;
     }
 }
-
