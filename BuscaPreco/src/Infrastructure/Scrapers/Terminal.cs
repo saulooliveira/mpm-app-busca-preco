@@ -635,7 +635,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 sock.Close();// fecha o socket
                 Desconectar(this);// envia o evento para desconectar o terminal
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 try
                 {
