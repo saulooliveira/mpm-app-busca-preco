@@ -334,7 +334,9 @@ namespace BuscaPreco.Presentation.WindowsForms
             for (int i = 0; i < listBuscaResultados.Items.Count; i++)
             {
                 var p = listBuscaResultados.Items[i] as BuscaPreco.Domain.Entities.Produto;
-                if (p != null && p.CodigoItem == text)
+                if (p == null) continue;
+
+                if (p.CodigoItem == text || p.CodigoItem.EndsWith(text))
                 {
                     listBuscaResultados.SelectedIndex = i;
                     listBuscaResultados.TopIndex = i;

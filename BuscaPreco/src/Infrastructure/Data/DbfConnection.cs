@@ -117,18 +117,25 @@
 
             foreach (var record in dbf.Records)
             {
-                if (record["COD"].ToString().Substring(0, 2) == "20" && record["COD"].ToString().Length == 5)
-                {
-                    var p = new Produto
-                    {
-                        CodigoItem = record["COD"].ToString().Substring(2),
-                        Descricao1 = record["DES"].ToString(),
-                        Preco = Convert.ToDecimal(record["VLVENDA1"]),
-                        Unidade = record["UNI"].ToString()
-                    };
+                var cod = record["COD"]?.ToString() ?? string.Empty;
+                var des = record["DES"]?.ToString() ?? string.Empty;
 
-                    produtos.Add(p);
-                }
+                // Ignorar registros sem código ou descrição
+                if (string.IsNullOrWhiteSpace(cod) || string.IsNullOrWhiteSpace(des))
+                    continue;
+
+                decimal preco = 0m;
+                try { preco = Convert.ToDecimal(record["VLVENDA1"]); } catch { }
+
+                var p = new Produto
+                {
+                    CodigoItem = cod,
+                    Descricao1 = des,
+                    Preco = preco,
+                    Unidade = record["UNI"]?.ToString() ?? string.Empty
+                };
+
+                produtos.Add(p);
             }
 
             return produtos;

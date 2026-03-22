@@ -86,9 +86,13 @@ namespace BuscaPreco.Infrastructure.Repositories
                     SELECT codigo_barras, descricao, preco, unidade, ultima_atualizacao
                     FROM produtos
                     WHERE codigo_barras = @cod
+                       OR codigo_barras LIKE @sufixo
+                    ORDER BY
+                        CASE WHEN codigo_barras = @cod THEN 0 ELSE 1 END
                     LIMIT 1;
                 ";
                 cmd.Parameters.AddWithValue("@cod", codigoBarras);
+                cmd.Parameters.AddWithValue("@sufixo", "%" + codigoBarras);
 
                 using var reader = cmd.ExecuteReader();
                 if (!reader.Read()) return null;
