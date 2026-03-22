@@ -20,6 +20,7 @@ namespace BuscaPreco.Presentation.WindowsForms
         private readonly Func<ConfiguracaoForm> _logFormFactory;
         private readonly ArrayList _terminaisConectados;
         private readonly AudioService _audioService;
+        private readonly IProdutoCacheService _produtoCacheService;
         private ConfiguracaoForm _logForm;
 
         public TrayApplicationContext(
@@ -27,7 +28,8 @@ namespace BuscaPreco.Presentation.WindowsForms
             Logger logger,
             Servidor servidor,
             Func<ConfiguracaoForm> logFormFactory,
-            AudioService audioService)
+            AudioService audioService,
+            IProdutoCacheService produtoCacheService)
         {
             _buscaPrecosService = buscaPrecosService;
             _logger = logger;
@@ -35,6 +37,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             _logFormFactory = logFormFactory;
             _terminaisConectados = new ArrayList();
             _audioService = audioService;
+            _produtoCacheService = produtoCacheService;
 
             InitializeServer();
 
@@ -168,20 +171,20 @@ namespace BuscaPreco.Presentation.WindowsForms
         {
             try
             {
-                var produtos = _buscaPrecosService.ListarTudo();
-                var quantidade = produtos?.Count ?? 0;
+                _produtoCacheService.SincronizarAgora();
 
-                _logger.Info($"Forçar Busca de Preços executado. Itens encontrados: {quantidade}.");
+                var quantidade = _buscaPrecosService.ListarTudo().Count;
+                _logger.Info("Forçar Busca de Preços executado. Itens no cache: {Quantidade}.", quantidade);
 
                 _notifyIcon.ShowBalloonTip(
                     3000,
                     "Busca de Preços",
-                    $"Sincronização concluída. Itens carregados: {quantidade}.",
+                    $"Sincronização concluída. Itens no cache: {quantidade}.",
                     ToolTipIcon.Info);
             }
             catch (Exception ex)
             {
-                _logger.Error($"Erro ao forçar busca de preços: {ex.Message}");
+                _logger.Error("Erro ao forçar busca de preços: {Message}", ex.Message);
                 _notifyIcon.ShowBalloonTip(
                     3000,
                     "Busca de Preços",

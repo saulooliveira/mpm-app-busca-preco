@@ -3,7 +3,6 @@ using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.Application.Services;
 using BuscaPreco.CrossCutting;
-using BuscaPreco.Domain.Interfaces;
 using BuscaPreco.Infrastructure.Data;
 using BuscaPreco.Infrastructure.Repositories;
 using BuscaPreco.Infrastructure.Scrapers;
@@ -95,6 +94,10 @@ namespace BuscaPreco
                     services.AddSingleton(sp => sp.GetRequiredService<IOptions<DbfConfig>>().Value);
                     services.AddSingleton<Logger>();
                     services.AddSingleton<YamlConfigWriter>();
+                    services.AddSingleton<ConsultaDbContext>();
+                    services.AddSingleton<ProdutoSqliteRepository>();
+                    services.AddSingleton<ProdutoCacheService>();
+                    services.AddSingleton<IProdutoCacheService>(sp => sp.GetRequiredService<ProdutoCacheService>());
                     services.AddSingleton<AudioService>();
                     services.AddSingleton<Servidor>();
 
@@ -105,8 +108,6 @@ namespace BuscaPreco
                         return new DbfDatabase(dbfConfig.DbfFilePath, logger);
                     });
 
-                    services.AddSingleton<IProdutoRepository, ProdutoRepository>();
-                    services.AddSingleton<IProdutoCacheTracker, ProdutoCacheTracker>();
                     services.AddSingleton<ITerminalActivityMonitor, TerminalActivityMonitor>();
                     services.AddSingleton<IBuscaPrecosService, BuscaPrecosService>();
                     services.AddSingleton<IAlertService, WebhookAlertService>();
