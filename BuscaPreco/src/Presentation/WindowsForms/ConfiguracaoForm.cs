@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
 using System.Linq;
@@ -18,6 +19,9 @@ namespace BuscaPreco.Presentation.WindowsForms
         private readonly IBuscaPrecosService buscaPrecosService;
         private readonly IOptions<ProdutosFixadosConfig> _produtosFixadosOptions;
         private readonly YamlConfigWriter _yamlConfigWriter;
+        private List<BuscaPreco.Domain.Entities.Produto> _todosProdutos = new List<BuscaPreco.Domain.Entities.Produto>();
+        private System.Windows.Forms.Timer _searchDebounceTimer;
+        private bool _todosProdutosCarregados;
 
         public ConfiguracaoForm(Logger logger, IBuscaPrecosService buscaPrecosService,
             IOptions<ProdutosFixadosConfig> produtosFixadosOptions, YamlConfigWriter yamlConfigWriter)
@@ -26,9 +30,21 @@ namespace BuscaPreco.Presentation.WindowsForms
             this.buscaPrecosService = buscaPrecosService;
             _produtosFixadosOptions = produtosFixadosOptions;
             _yamlConfigWriter = yamlConfigWriter;
+            InicializarDebounceTimer();
 
             this.logger.Info("Iniciando App...");
             InitializeComponent();
+        }
+
+        private void InicializarDebounceTimer()
+        {
+            _searchDebounceTimer = new System.Windows.Forms.Timer();
+            _searchDebounceTimer.Interval = 400;
+            _searchDebounceTimer.Tick += (s, e) =>
+            {
+                _searchDebounceTimer.Stop();
+                FiltrarListaBusca();
+            };
         }
 
         private void OnChanged(object source, FileSystemEventArgs e)
@@ -42,6 +58,7 @@ namespace BuscaPreco.Presentation.WindowsForms
         {
             Habilita_Configuracoes(true);
             CarregarFixadosAtuais();
+            // Products are loaded lazily when the Promoções tab is first selected.
         }
 
         private void bTexto_Click(object sender, EventArgs e)
@@ -211,18 +228,67 @@ namespace BuscaPreco.Presentation.WindowsForms
 
         private void txtBuscaProduto_TextChanged(object sender, EventArgs e)
         {
+            _searchDebounceTimer.Stop();
+            _searchDebounceTimer.Start();
+        }
+
+        private void txtBuscaProduto_Leave(object sender, EventArgs e)
+        {
+            var text = txtBuscaProduto.Text.Trim();
+            if (string.IsNullOrEmpty(text)) return;
+            var isNumeric = text.All(char.IsDigit);
+            if (!isNumeric) return;
+
+            _searchDebounceTimer.Stop();
+            FiltrarListaBusca();
+
+            for (int i = 0; i < listBuscaResultados.Items.Count; i++)
+            {
+                var p = listBuscaResultados.Items[i] as BuscaPreco.Domain.Entities.Produto;
+                if (p != null && p.CodigoItem == text)
+                {
+                    listBuscaResultados.SelectedIndex = i;
+                    listBuscaResultados.TopIndex = i;
+                    break;
+                }
+            }
+        }
+
+        private void tabControl1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (tabControl1.SelectedTab == tabPagePromocoes)
+                CarregarTodosProdutos();
+        }
+
+        private void CarregarTodosProdutos()
+        {
+            if (_todosProdutosCarregados)
+            {
+                FiltrarListaBusca();
+                return;
+            }
+
+            _todosProdutos = buscaPrecosService.ListarTudo();
+            _todosProdutosCarregados = true;
+            FiltrarListaBusca();
+        }
+
+        private void FiltrarListaBusca()
+        {
             var query = txtBuscaProduto.Text.Trim().ToUpperInvariant();
             listBuscaResultados.DisplayMember = string.Empty;
+            listBuscaResultados.BeginUpdate();
             listBuscaResultados.Items.Clear();
-            var produtos = buscaPrecosService.ListarTudo();
-            foreach (var p in produtos)
+            foreach (var p in _todosProdutos)
             {
                 if (string.IsNullOrEmpty(query) ||
-                    (p.Descricao1 ?? string.Empty).ToUpperInvariant().Contains(query))
+                    (p.Descricao1 ?? string.Empty).ToUpperInvariant().Contains(query) ||
+                    (p.CodigoItem ?? string.Empty).Contains(query))
                 {
                     listBuscaResultados.Items.Add(p);
                 }
             }
+            listBuscaResultados.EndUpdate();
             listBuscaResultados.DisplayMember = "Descricao1";
         }
 
