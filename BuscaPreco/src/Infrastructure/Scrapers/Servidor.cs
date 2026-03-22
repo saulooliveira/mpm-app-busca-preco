@@ -99,6 +99,33 @@ namespace BuscaPreco.Infrastructure.Scrapers
             }
         }
 
+        /// <summary>
+        /// Retorna o terminal pelo índice na lista de conectados (thread-safe snapshot).
+        /// Retorna null se o índice for inválido.
+        /// </summary>
+        public Terminal GetTerminal(int index)
+        {
+            lock (listaTerminaisLock)
+            {
+                if (index < 0 || index >= listaTerminais.Count) return null;
+                return (Terminal)listaTerminais[index];
+            }
+        }
+
+        /// <summary>
+        /// Retorna snapshot somente-leitura de todos os terminais conectados.
+        /// </summary>
+        public Terminal[] GetTerminaisSnapshot()
+        {
+            lock (listaTerminaisLock)
+            {
+                var arr = new Terminal[listaTerminais.Count];
+                for (int i = 0; i < listaTerminais.Count; i++)
+                    arr[i] = (Terminal)listaTerminais[i];
+                return arr;
+            }
+        }
+
         public void startServer()
         {
             Start();

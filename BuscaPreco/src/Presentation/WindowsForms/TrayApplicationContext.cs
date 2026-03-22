@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.CrossCutting;
 using BuscaPreco.Infrastructure.Scrapers;
+using BuscaPreco.Infrastructure.Services;
 
 namespace BuscaPreco.Presentation.WindowsForms
 {
@@ -18,19 +19,22 @@ namespace BuscaPreco.Presentation.WindowsForms
         private readonly Servidor _servidor;
         private readonly Func<ConfiguracaoForm> _logFormFactory;
         private readonly ArrayList _terminaisConectados;
+        private readonly AudioService _audioService;
         private ConfiguracaoForm _logForm;
 
         public TrayApplicationContext(
             IBuscaPrecosService buscaPrecosService,
             Logger logger,
             Servidor servidor,
-            Func<ConfiguracaoForm> logFormFactory)
+            Func<ConfiguracaoForm> logFormFactory,
+            AudioService audioService)
         {
             _buscaPrecosService = buscaPrecosService;
             _logger = logger;
             _servidor = servidor;
             _logFormFactory = logFormFactory;
             _terminaisConectados = new ArrayList();
+            _audioService = audioService;
 
             InitializeServer();
 
@@ -94,8 +98,26 @@ namespace BuscaPreco.Presentation.WindowsForms
                     return;
                 }
 
-                terminal.SendProcPrice(descricao, preco.ToString("0.00", CultureInfo.InvariantCulture));
-                _logger.Info("Resposta enviada ao terminal. CodigoBarras={CodigoBarras} Descricao={Descricao} Preco={Preco}", codigo, descricao, preco);
+                var precoFormatado = preco.ToString("0.00", CultureInfo.InvariantCulture);
+                var wavBytes = _audioService.IsEnabled ? _audioService.GetWavBytes() : null;
+
+                if (wavBytes != null && terminal.IsG2SComAudio)
+                {
+                    terminal.SendPlayAudioWithMessage(
+                        wavBytes,
+                        _audioService.DuracaoSegundos,
+                        _audioService.Volume,
+                        descricao,
+                        precoFormatado);
+                    _logger.Info("Resposta com áudio enviada. CodigoBarras={CodigoBarras} Descricao={Descricao} Preco={Preco}",
+                        codigo, descricao, preco);
+                }
+                else
+                {
+                    terminal.SendProcPrice(descricao, precoFormatado);
+                    _logger.Info("Resposta enviada ao terminal. CodigoBarras={CodigoBarras} Descricao={Descricao} Preco={Preco}",
+                        codigo, descricao, preco);
+                }
             }
             catch (Exception ex)
             {

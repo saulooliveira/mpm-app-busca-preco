@@ -39,3 +39,8 @@ Serilog:
 
 ProdutosFixados:
   Codigos: []
+
+AudioConfig:
+  WavFilePath: ""
+  Volume: 2
+  DuracaoSegundos: 3

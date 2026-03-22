@@ -9,6 +9,8 @@ using BuscaPreco.CrossCutting;
 using BuscaPreco.Domain.Entities;
 using BuscaPreco.Infrastructure.Data;
 using BuscaPreco.Infrastructure.Repositories;
+using BuscaPreco.Infrastructure.Scrapers;
+using BuscaPreco.Infrastructure.Services;
 using Microsoft.Extensions.Options;
 
 namespace BuscaPreco.Presentation.WindowsForms
@@ -19,17 +21,21 @@ namespace BuscaPreco.Presentation.WindowsForms
         private readonly IBuscaPrecosService buscaPrecosService;
         private readonly IOptions<ProdutosFixadosConfig> _produtosFixadosOptions;
         private readonly YamlConfigWriter _yamlConfigWriter;
+        private readonly Servidor _servidor;
         private List<BuscaPreco.Domain.Entities.Produto> _todosProdutos = new List<BuscaPreco.Domain.Entities.Produto>();
         private System.Windows.Forms.Timer _searchDebounceTimer;
         private bool _todosProdutosCarregados;
 
         public ConfiguracaoForm(Logger logger, IBuscaPrecosService buscaPrecosService,
-            IOptions<ProdutosFixadosConfig> produtosFixadosOptions, YamlConfigWriter yamlConfigWriter)
+            IOptions<ProdutosFixadosConfig> produtosFixadosOptions,
+            YamlConfigWriter yamlConfigWriter,
+            Servidor servidor)
         {
             this.logger = logger;
             this.buscaPrecosService = buscaPrecosService;
             _produtosFixadosOptions = produtosFixadosOptions;
             _yamlConfigWriter = yamlConfigWriter;
+            _servidor = servidor;
             InicializarDebounceTimer();
 
             this.logger.Info("Iniciando App...");
@@ -116,34 +122,117 @@ namespace BuscaPreco.Presentation.WindowsForms
 
         private void lista_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // Sem gestão de terminais no formulário.
+            var terminal = GetTerminalSelecionado();
+            if (terminal == null)
+            {
+                lblFirmwareInfo.Text = "Selecione um terminal para ver a versão de firmware.";
+                lblFirmwareInfo.ForeColor = System.Drawing.Color.Gray;
+                Habilita_Configuracoes(false);
+                return;
+            }
+
+            Habilita_Configuracoes(true);
+            montaConfig(terminal.config);
+
+            bool isG2S = terminal.IsG2SComAudio;
+            string audioInfo = isG2S ? " — G2 S (áudio suportado)" : " — G2 (sem áudio)";
+            string macInfo = string.IsNullOrEmpty(terminal.MacAddress) ? "" : "  |  MAC: " + terminal.MacAddress;
+            lblFirmwareInfo.Text = $"Modelo: {terminal.Tipo}  |  Firmware: {terminal.Versao}{audioInfo}{macInfo}";
+            lblFirmwareInfo.ForeColor = isG2S
+                ? System.Drawing.Color.DarkGreen
+                : System.Drawing.Color.DarkBlue;
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
+            // Salva config.yaml local E envia #reconf02 ao terminal selecionado
             try
             {
                 var conf = geraConfig();
                 var path = Path.Combine(AppContext.BaseDirectory, "config.yaml");
                 SaveConfigToFile(conf, path);
-                logger.Info($"Configuração salva em: {path}");
-                MessageBox.Show($"Configuração salva em:\n{path}", "Configuração", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                logger.Info("Configuração salva em: {Path}", path);
+
+                var terminal = GetTerminalSelecionado();
+                if (terminal != null)
+                {
+                    terminal.SendReconf02(
+                        conf.IPServer, conf.IPCliente, conf.Mascara,
+                        conf.TLinha1, conf.TLinha2, conf.TLinha3, conf.TLinha4,
+                        conf.Tempo);
+                    MessageBox.Show(
+                        "Configuração salva e enviada ao terminal.\nO terminal será reiniciado.",
+                        "Configuração", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Configuração salva localmente.\nNenhum terminal selecionado — envio remoto ignorado.",
+                        "Configuração", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
             }
             catch (Exception ex)
             {
-                logger.Info($"Erro ao salvar configuração: {ex.Message}");
-                MessageBox.Show($"Erro ao salvar configuração: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                logger.Error("Erro ao salvar/enviar configuração: {Erro}", ex.Message);
+                MessageBox.Show("Erro ao salvar configuração:\n" + ex.Message,
+                    "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void bUpdate_Click(object sender, EventArgs e)
         {
-            logger.Info("bUpdate acionado, operação desabilitada na tela de configuração.");
+            try
+            {
+                var terminal = GetTerminalSelecionado();
+                if (terminal == null)
+                {
+                    MessageBox.Show("Selecione um terminal na lista antes de enviar.",
+                        "BuscaPreço", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                terminal.SendRupdconfig(gateway.Text.Trim(), nome.Text.Trim());
+                logger.Info("SendRupdconfig enviado ao terminal {Terminal}.", terminal.ToString());
+                MessageBox.Show("Configuração de gateway/nome enviada ao terminal.",
+                    "BuscaPreço", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Erro ao enviar rupdconfig: {Erro}", ex.Message);
+                MessageBox.Show("Erro ao enviar:\n" + ex.Message,
+                    "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void bParam_Click(object sender, EventArgs e)
         {
-            logger.Info("bParam acionado, operação desabilitada na tela de configuração.");
+            try
+            {
+                var terminal = GetTerminalSelecionado();
+                if (terminal == null)
+                {
+                    MessageBox.Show("Selecione um terminal na lista antes de enviar.",
+                        "BuscaPreço", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                bool ipDinamico = dinamico.Checked;
+                terminal.SendRparamconfig(ipDinamico);
+                logger.Info("SendRparamconfig enviado ao terminal {Terminal}. IPDinamico={IPDinamico}",
+                    terminal.ToString(), ipDinamico);
+                MessageBox.Show("Parâmetros de rede enviados ao terminal.",
+                    "BuscaPreço", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Erro ao enviar rparamconfig: {Erro}", ex.Message);
+                MessageBox.Show("Erro ao enviar:\n" + ex.Message,
+                    "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private Terminal GetTerminalSelecionado()
+        {
+            if (lista.SelectedIndex < 0) return null;
+            return _servidor.GetTerminal(lista.SelectedIndex);
         }
 
         private Configuracoes geraConfig()
