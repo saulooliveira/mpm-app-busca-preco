@@ -10,6 +10,7 @@ using BuscaPreco.Application.Models;
 using BuscaPreco.Application.Services;
 using BuscaPreco.CrossCutting;
 using BuscaPreco.Domain.Entities;
+using BuscaPreco.Domain.Interfaces;
 using BuscaPreco.Infrastructure.Data;
 using BuscaPreco.Infrastructure.Repositories;
 using BuscaPreco.Infrastructure.Scrapers;
