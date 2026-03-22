@@ -10,7 +10,7 @@ using BuscaPreco.Domain.Entities;
 
 namespace BuscaPreco.Infrastructure.Scrapers
 {
-    class Terminal
+    public class Terminal
     {
         //Configura os eventos para desconectar o terminal e enviar comandos
         public delegate void onDisconectTerminal(object sender);
