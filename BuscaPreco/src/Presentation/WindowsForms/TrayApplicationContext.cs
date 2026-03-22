@@ -22,12 +22,15 @@ namespace BuscaPreco.Presentation.WindowsForms
         private readonly AudioService _audioService;
         private readonly IProdutoCacheService _produtoCacheService;
         private ConfiguracaoForm _logForm;
+        private RelatorioForm _relatorioForm;
+        private readonly Func<RelatorioForm> _relatorioFormFactory;
 
         public TrayApplicationContext(
             IBuscaPrecosService buscaPrecosService,
             Logger logger,
             Servidor servidor,
             Func<ConfiguracaoForm> logFormFactory,
+            Func<RelatorioForm> relatorioFormFactory,
             AudioService audioService,
             IProdutoCacheService produtoCacheService)
         {
@@ -38,6 +41,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             _terminaisConectados = new ArrayList();
             _audioService = audioService;
             _produtoCacheService = produtoCacheService;
+            _relatorioFormFactory = relatorioFormFactory;
 
             InitializeServer();
 
@@ -155,12 +159,16 @@ namespace BuscaPreco.Presentation.WindowsForms
             var configItem = new ToolStripMenuItem("Configurações");
             configItem.Click += (_, __) => ShowLogForm();
 
+            var relatorioItem = new ToolStripMenuItem("Relatório de Consultas");
+            relatorioItem.Click += (_, __) => ShowRelatorioForm();
+
             var exitItem = new ToolStripMenuItem("Sair");
             exitItem.Click += (_, __) => ExitApplication();
 
             contextMenu.Items.Add(statusItem);
             contextMenu.Items.Add(forceSearchItem);
             contextMenu.Items.Add(configItem);
+            contextMenu.Items.Add(relatorioItem);
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(exitItem);
 
@@ -228,6 +236,25 @@ namespace BuscaPreco.Presentation.WindowsForms
             _logForm.Activate();
         }
 
+
+        private void ShowRelatorioForm()
+        {
+            if (_relatorioForm == null || _relatorioForm.IsDisposed)
+            {
+                _relatorioForm = _relatorioFormFactory();
+                _relatorioForm.FormClosed += (_, __) => _relatorioForm = null;
+            }
+
+            if (!_relatorioForm.Visible)
+            {
+                _relatorioForm.Show();
+            }
+
+            _relatorioForm.WindowState = FormWindowState.Normal;
+            _relatorioForm.BringToFront();
+            _relatorioForm.Activate();
+        }
+
         private Icon LoadTrayIcon()
         {
             var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "buscapreco.ico");
@@ -253,6 +280,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             {
                 _notifyIcon?.Dispose();
                 _logForm?.Dispose();
+                _relatorioForm?.Dispose();
             }
 
             base.Dispose(disposing);
