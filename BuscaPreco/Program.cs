@@ -3,7 +3,6 @@ using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.Application.Services;
 using BuscaPreco.CrossCutting;
-using BuscaPreco.Domain.Interfaces;
 using BuscaPreco.Infrastructure.Data;
 using BuscaPreco.Infrastructure.Repositories;
 using BuscaPreco.Infrastructure.Scrapers;
@@ -90,10 +89,16 @@ namespace BuscaPreco
                     services.Configure<EmailConfig>(context.Configuration.GetSection("Email"));
                     services.Configure<FeatureConfig>(context.Configuration.GetSection("Features"));
                     services.Configure<ProdutosFixadosConfig>(context.Configuration.GetSection("ProdutosFixados"));
+                    services.Configure<AudioConfig>(context.Configuration.GetSection("AudioConfig"));
 
                     services.AddSingleton(sp => sp.GetRequiredService<IOptions<DbfConfig>>().Value);
                     services.AddSingleton<Logger>();
                     services.AddSingleton<YamlConfigWriter>();
+                    services.AddSingleton<ConsultaDbContext>();
+                    services.AddSingleton<ProdutoSqliteRepository>();
+                    services.AddSingleton<ProdutoCacheService>();
+                    services.AddSingleton<IProdutoCacheService>(sp => sp.GetRequiredService<ProdutoCacheService>());
+                    services.AddSingleton<AudioService>();
                     services.AddSingleton<Servidor>();
 
                     services.AddSingleton<DbfDatabase>(sp =>
@@ -103,8 +108,6 @@ namespace BuscaPreco
                         return new DbfDatabase(dbfConfig.DbfFilePath, logger);
                     });
 
-                    services.AddSingleton<IProdutoRepository, ProdutoRepository>();
-                    services.AddSingleton<IProdutoCacheTracker, ProdutoCacheTracker>();
                     services.AddSingleton<ITerminalActivityMonitor, TerminalActivityMonitor>();
                     services.AddSingleton<IBuscaPrecosService, BuscaPrecosService>();
                     services.AddSingleton<IAlertService, WebhookAlertService>();

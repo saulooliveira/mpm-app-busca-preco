@@ -1,10 +1,12 @@
 using System.Globalization;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
 using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
+using BuscaPreco.Application.Models;
 using BuscaPreco.Application.Services;
 using BuscaPreco.CrossCutting;
 using BuscaPreco.Domain.Entities;
@@ -30,9 +32,8 @@ public class BuscaPrecoSocketE2ETests
         var repository = new ProdutoRepository(dbfDatabase);
 
         var buscaPrecosService = new BuscaPrecosService(
-            repository,
+            new FakeProdutoCacheService(repository),
             new NullAlertService(),
-            new NullProdutoCacheTracker(),
             new NullTerminalActivityMonitor(),
             Options.Create(new FeatureConfig { CacheTTLMinutes = 10 }),
             logger);
@@ -219,11 +220,39 @@ public class BuscaPrecoSocketE2ETests
         public Task NotifyProdutoNaoEncontradoAsync(string codigo) => Task.CompletedTask;
     }
 
-    private sealed class NullProdutoCacheTracker : IProdutoCacheTracker
+    private sealed class FakeProdutoCacheService : IProdutoCacheService
     {
-        public void Remove(string codigo) { }
-        public IReadOnlyCollection<Produto> SnapshotProdutos() => Array.Empty<Produto>();
-        public void Track(string codigo, Produto produto) { }
+        private readonly IProdutoRepository _repo;
+
+        public FakeProdutoCacheService(IProdutoRepository repo)
+        {
+            _repo = repo;
+        }
+
+        public ProdutoCacheEntry BuscarPorCodigo(string codigoBarras)
+        {
+            var (des, vlrVenda1) = _repo.BuscarPorCodigo(codigoBarras);
+            if (string.IsNullOrWhiteSpace(des)) return null;
+            return new ProdutoCacheEntry
+            {
+                CodigoBarras = codigoBarras,
+                Descricao = des,
+                Preco = vlrVenda1
+            };
+        }
+
+        public List<ProdutoCacheEntry> ListarTodos()
+            => _repo.ListarTudo()
+                .Select(p => new ProdutoCacheEntry
+                {
+                    CodigoBarras = p.CodigoItem,
+                    Descricao = p.Descricao1,
+                    Preco = p.Preco,
+                    Unidade = p.Unidade
+                })
+                .ToList();
+
+        public void SincronizarAgora() { }
     }
 
     private sealed class NullTerminalActivityMonitor : ITerminalActivityMonitor

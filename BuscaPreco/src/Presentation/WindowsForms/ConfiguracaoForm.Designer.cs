@@ -94,6 +94,7 @@
             this.btnRemoverFixado = new System.Windows.Forms.Button();
             this.btnLimparFixados = new System.Windows.Forms.Button();
             this.btnSalvarFixados = new System.Windows.Forms.Button();
+            this.lblFirmwareInfo = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
@@ -704,7 +705,8 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(638, 346);
+            this.ClientSize = new System.Drawing.Size(638, 372);
+            this.Controls.Add(this.lblFirmwareInfo);
             this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.lista);
             this.Name = "ConfiguracaoForm";
@@ -743,6 +745,12 @@
 
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
+            // ── Label versão firmware ────────────────────────────────────────
+            this.lblFirmwareInfo.Location = new System.Drawing.Point(196, 345);
+            this.lblFirmwareInfo.Size = new System.Drawing.Size(430, 20);
+            this.lblFirmwareInfo.Font = new System.Drawing.Font("Segoe UI", 8f, System.Drawing.FontStyle.Italic);
+            this.lblFirmwareInfo.ForeColor = System.Drawing.Color.Gray;
+            this.lblFirmwareInfo.Text = "Selecione um terminal para ver a versão de firmware.";
             this.ResumeLayout(false);
 
         }
@@ -815,5 +823,6 @@
         private System.Windows.Forms.Button btnRemoverFixado;
         private System.Windows.Forms.Button btnLimparFixados;
         private System.Windows.Forms.Button btnSalvarFixados;
+        private System.Windows.Forms.Label lblFirmwareInfo;
     }
 }
