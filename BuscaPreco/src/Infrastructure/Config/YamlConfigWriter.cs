@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuscaPreco.CrossCutting;
 
-namespace BuscaPreco.Infrastructure.Data
+namespace BuscaPreco.Infrastructure.Config
 {
     public class YamlConfigWriter
     {
@@ -61,7 +61,7 @@ namespace BuscaPreco.Infrastructure.Data
                 lines.AddRange(newBlock);
 
                 File.WriteAllLines(_configFilePath, lines);
-                _logger.Info("ProdutosFixados gravados no config.yaml: {Count} código(s).", codeList.Count);
+                _logger.Info("ProdutosFixados gravados no config.yaml: {Count} cÃ³digo(s).", codeList.Count);
             }
             catch (Exception ex)
             {

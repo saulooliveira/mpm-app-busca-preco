@@ -7,9 +7,11 @@ using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.CrossCutting;
 using BuscaPreco.Domain.Entities;
-using BuscaPreco.Infrastructure.Data;
+using BuscaPreco.Infrastructure.Config;
+using BuscaPreco.Infrastructure.Database;
+using BuscaPreco.Infrastructure.Export;
 using BuscaPreco.Infrastructure.Repositories;
-using BuscaPreco.Infrastructure.Scrapers;
+using BuscaPreco.Infrastructure.Terminal;
 using BuscaPreco.Infrastructure.Services;
 using Microsoft.Extensions.Options;
 
@@ -64,12 +66,12 @@ namespace BuscaPreco.Presentation.WindowsForms
         {
             Habilita_Configuracoes(true);
             CarregarFixadosAtuais();
-            // Products are loaded lazily when the Promoções tab is first selected.
+            // Products are loaded lazily when the PromoÃ§Ãµes tab is first selected.
         }
 
         private void bTexto_Click(object sender, EventArgs e)
         {
-            logger.Info("Função de envio de texto aos terminais está desabilitada na tela de configuração.");
+            logger.Info("FunÃ§Ã£o de envio de texto aos terminais estÃ¡ desabilitada na tela de configuraÃ§Ã£o.");
         }
 
         private void Habilita_Configuracoes(bool val)
@@ -125,7 +127,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             var terminal = GetTerminalSelecionado();
             if (terminal == null)
             {
-                lblFirmwareInfo.Text = "Selecione um terminal para ver a versão de firmware.";
+                lblFirmwareInfo.Text = "Selecione um terminal para ver a versÃ£o de firmware.";
                 lblFirmwareInfo.ForeColor = System.Drawing.Color.Gray;
                 Habilita_Configuracoes(false);
                 return;
@@ -135,7 +137,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             montaConfig(terminal.config);
 
             bool isG2S = terminal.IsG2SComAudio;
-            string audioInfo = isG2S ? " — G2 S (áudio suportado)" : " — G2 (sem áudio)";
+            string audioInfo = isG2S ? " â€” G2 S (Ã¡udio suportado)" : " â€” G2 (sem Ã¡udio)";
             string macInfo = string.IsNullOrEmpty(terminal.MacAddress) ? "" : "  |  MAC: " + terminal.MacAddress;
             lblFirmwareInfo.Text = $"Modelo: {terminal.Tipo}  |  Firmware: {terminal.Versao}{audioInfo}{macInfo}";
             lblFirmwareInfo.ForeColor = isG2S
@@ -151,7 +153,7 @@ namespace BuscaPreco.Presentation.WindowsForms
                 var conf = geraConfig();
                 var path = Path.Combine(AppContext.BaseDirectory, "config.yaml");
                 SaveConfigToFile(conf, path);
-                logger.Info("Configuração salva em: {Path}", path);
+                logger.Info("ConfiguraÃ§Ã£o salva em: {Path}", path);
 
                 var terminal = GetTerminalSelecionado();
                 if (terminal != null)
@@ -161,20 +163,20 @@ namespace BuscaPreco.Presentation.WindowsForms
                         conf.TLinha1, conf.TLinha2, conf.TLinha3, conf.TLinha4,
                         conf.Tempo);
                     MessageBox.Show(
-                        "Configuração salva e enviada ao terminal.\nO terminal será reiniciado.",
-                        "Configuração", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        "ConfiguraÃ§Ã£o salva e enviada ao terminal.\nO terminal serÃ¡ reiniciado.",
+                        "ConfiguraÃ§Ã£o", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
                     MessageBox.Show(
-                        "Configuração salva localmente.\nNenhum terminal selecionado — envio remoto ignorado.",
-                        "Configuração", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        "ConfiguraÃ§Ã£o salva localmente.\nNenhum terminal selecionado â€” envio remoto ignorado.",
+                        "ConfiguraÃ§Ã£o", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             catch (Exception ex)
             {
-                logger.Error("Erro ao salvar/enviar configuração: {Erro}", ex.Message);
-                MessageBox.Show("Erro ao salvar configuração:\n" + ex.Message,
+                logger.Error("Erro ao salvar/enviar configuraÃ§Ã£o: {Erro}", ex.Message);
+                MessageBox.Show("Erro ao salvar configuraÃ§Ã£o:\n" + ex.Message,
                     "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -187,13 +189,13 @@ namespace BuscaPreco.Presentation.WindowsForms
                 if (terminal == null)
                 {
                     MessageBox.Show("Selecione um terminal na lista antes de enviar.",
-                        "BuscaPreço", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        "BuscaPreÃ§o", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
                 terminal.SendRupdconfig(gateway.Text.Trim(), nome.Text.Trim());
                 logger.Info("SendRupdconfig enviado ao terminal {Terminal}.", terminal.ToString());
-                MessageBox.Show("Configuração de gateway/nome enviada ao terminal.",
-                    "BuscaPreço", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("ConfiguraÃ§Ã£o de gateway/nome enviada ao terminal.",
+                    "BuscaPreÃ§o", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -211,15 +213,15 @@ namespace BuscaPreco.Presentation.WindowsForms
                 if (terminal == null)
                 {
                     MessageBox.Show("Selecione um terminal na lista antes de enviar.",
-                        "BuscaPreço", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        "BuscaPreÃ§o", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
                 bool ipDinamico = dinamico.Checked;
                 terminal.SendRparamconfig(ipDinamico);
                 logger.Info("SendRparamconfig enviado ao terminal {Terminal}. IPDinamico={IPDinamico}",
                     terminal.ToString(), ipDinamico);
-                MessageBox.Show("Parâmetros de rede enviados ao terminal.",
-                    "BuscaPreço", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("ParÃ¢metros de rede enviados ao terminal.",
+                    "BuscaPreÃ§o", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -286,7 +288,7 @@ namespace BuscaPreco.Presentation.WindowsForms
 
         private void bReset_Click(object sender, EventArgs e)
         {
-            logger.Info("bReset acionado, operação desabilitada na tela de configuração.");
+            logger.Info("bReset acionado, operaÃ§Ã£o desabilitada na tela de configuraÃ§Ã£o.");
         }
 
         private void SaveConfigToFile(Configuracoes conf, string filePath)
@@ -420,18 +422,18 @@ namespace BuscaPreco.Presentation.WindowsForms
                     .ToList();
 
                 _yamlConfigWriter.SaveProdutosFixados(codes);
-                logger.Info("Promoções salvas: {Count} produto(s) fixado(s).", codes.Count);
+                logger.Info("PromoÃ§Ãµes salvas: {Count} produto(s) fixado(s).", codes.Count);
                 MessageBox.Show(
-                    "Promoções salvas com sucesso.",
-                    "BuscaPreço",
+                    "PromoÃ§Ãµes salvas com sucesso.",
+                    "BuscaPreÃ§o",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    "Erro ao salvar promoções:\n" + ex.Message,
-                    "BuscaPreço — Erro",
+                    "Erro ao salvar promoÃ§Ãµes:\n" + ex.Message,
+                    "BuscaPreÃ§o â€” Erro",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
@@ -455,7 +457,7 @@ namespace BuscaPreco.Presentation.WindowsForms
 
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
         {
-            // Ciclo de vida do servidor é controlado no TrayApplicationContext.
+            // Ciclo de vida do servidor Ã© controlado no TrayApplicationContext.
         }
     }
 }

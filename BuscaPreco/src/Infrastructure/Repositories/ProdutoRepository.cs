@@ -1,7 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using BuscaPreco.Domain.Entities;
 using BuscaPreco.Domain.Interfaces;
-using BuscaPreco.Infrastructure.Data;
+using BuscaPreco.Infrastructure.Database;
 
 namespace BuscaPreco.Infrastructure.Repositories
 {

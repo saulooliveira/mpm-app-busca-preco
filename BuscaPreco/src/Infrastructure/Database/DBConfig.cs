@@ -1,4 +1,4 @@
-namespace BuscaPreco.Infrastructure.Data
+﻿namespace BuscaPreco.Infrastructure.Database
 {
     public class DbfConfig
     {

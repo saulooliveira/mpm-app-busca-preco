@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.IO;
 using Microsoft.Data.Sqlite;
 
-namespace BuscaPreco.Infrastructure.Data
+namespace BuscaPreco.Infrastructure.Database
 {
     public class ConsultaDbContext
     {

@@ -6,13 +6,46 @@ using System.IO;
 using System.Windows.Forms;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.CrossCutting;
-using BuscaPreco.Infrastructure.Scrapers;
+using BuscaPreco.Infrastructure.Terminal;
 using BuscaPreco.Infrastructure.Services;
 
 namespace BuscaPreco.Presentation.WindowsForms
 {
     public class TrayApplicationContext : ApplicationContext
     {
+        // ── Constantes de UI ─────────────────────────────────────────────────
+
+        private const string AppName                    = "BuscaPreço";
+        private const string TrayTooltip               = "BuscaPreço - Monitoramento";
+        private const string BalloonTitleApp            = "BuscaPreço";
+
+        private const string BalloonTitleIniciado       = "BuscaPreço iniciado";
+        private const string BalloonMsgIniciado         = "A aplicação está em execução na bandeja do sistema.";
+
+        private const string MenuStatusTitle            = "Status do Monitoramento";
+        private const string BalloonMsgMonitoramentoAtivo = "Monitoramento ativo e pronto para consultas.";
+
+        private const string MenuForcaBusca             = "Forçar Busca de Preços";
+        private const string MenuConfiguracoes          = "Configurações";
+        private const string MenuRelatorio              = "Relatório de Consultas";
+        private const string MenuSair                   = "Sair";
+
+        private const string BalloonTitleBusca          = "Busca de Preços";
+        private const string BalloonMsgSincronizado     = "Sincronização concluída. Itens no cache: {0}.";
+        private const string BalloonMsgFalhaBusca       = "Falha ao executar a busca. Consulte o log para detalhes.";
+
+        private const string BalloonMsgAppAtiva         = "Aplicação ativa na bandeja.";
+
+        private const string TrayIconFileName           = "buscapreco.ico";
+        private const string TrayIconAssetsFolder       = "Assets";
+
+        private const int    BalloonTipDuracaoMs        = 3000;
+        private const int    BalloonTipDuracaoCurtaMs   = 2000;
+
+        private const string PrecoFormat               = "0.00";
+
+        // ── Campos ──────────────────────────────────────────────────────────
+
         private readonly NotifyIcon _notifyIcon;
         private readonly IBuscaPrecosService _buscaPrecosService;
         private readonly Logger _logger;
@@ -34,12 +67,12 @@ namespace BuscaPreco.Presentation.WindowsForms
             AudioService audioService,
             IProdutoCacheService produtoCacheService)
         {
-            _buscaPrecosService = buscaPrecosService;
-            _logger = logger;
-            _servidor = servidor;
-            _logFormFactory = logFormFactory;
+            _buscaPrecosService  = buscaPrecosService;
+            _logger              = logger;
+            _servidor            = servidor;
+            _logFormFactory      = logFormFactory;
             _terminaisConectados = new ArrayList();
-            _audioService = audioService;
+            _audioService        = audioService;
             _produtoCacheService = produtoCacheService;
             _relatorioFormFactory = relatorioFormFactory;
 
@@ -48,27 +81,27 @@ namespace BuscaPreco.Presentation.WindowsForms
             var contextMenu = BuildContextMenu();
             _notifyIcon = new NotifyIcon
             {
-                Icon = LoadTrayIcon(),
-                Text = "BuscaPreço - Monitoramento",
-                ContextMenuStrip = contextMenu,
-                Visible = true,
-                BalloonTipIcon = ToolTipIcon.Info,
-                BalloonTipTitle = "BuscaPreço"
+                Icon              = LoadTrayIcon(),
+                Text              = TrayTooltip,
+                ContextMenuStrip  = contextMenu,
+                Visible           = true,
+                BalloonTipIcon    = ToolTipIcon.Info,
+                BalloonTipTitle   = BalloonTitleApp
             };
 
             _notifyIcon.DoubleClick += OnNotifyIconDoubleClick;
 
             _notifyIcon.ShowBalloonTip(
-                3000,
-                "BuscaPreço iniciado",
-                "A aplicação está em execução na bandeja do sistema.",
+                BalloonTipDuracaoMs,
+                BalloonTitleIniciado,
+                BalloonMsgIniciado,
                 ToolTipIcon.Info);
         }
 
         private void InitializeServer()
         {
-            _servidor.onChange += OnChangeList;
-            _servidor.onReceive += OnReceiveData;
+            _servidor.onChange   += OnChangeList;
+            _servidor.onReceive  += OnReceiveData;
             _servidor.Start();
 
             _logger.Info("Servidor Gertec inicializado no contexto da bandeja.");
@@ -105,7 +138,7 @@ namespace BuscaPreco.Presentation.WindowsForms
                     return;
                 }
 
-                var precoFormatado = preco.ToString("0.00", CultureInfo.InvariantCulture);
+                var precoFormatado = preco.ToString(PrecoFormat, CultureInfo.InvariantCulture);
                 var wavBytes = _audioService.IsEnabled ? _audioService.GetWavBytes() : null;
 
                 if (wavBytes != null && terminal.IsG2SComAudio)
@@ -128,7 +161,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             }
             catch (Exception ex)
             {
-                _logger.Error($"Erro ao processar dado recebido do terminal: {ex.Message}");
+                _logger.Error("Erro ao processar dado recebido do terminal: {Erro}", ex.Message);
             }
         }
 
@@ -143,26 +176,26 @@ namespace BuscaPreco.Presentation.WindowsForms
         {
             var contextMenu = new ContextMenuStrip();
 
-            var statusItem = new ToolStripMenuItem("Status do Monitoramento");
+            var statusItem = new ToolStripMenuItem(MenuStatusTitle);
             statusItem.Click += (_, __) =>
             {
                 _notifyIcon.ShowBalloonTip(
-                    3000,
-                    "Status do Monitoramento",
-                    "Monitoramento ativo e pronto para consultas.",
+                    BalloonTipDuracaoMs,
+                    MenuStatusTitle,
+                    BalloonMsgMonitoramentoAtivo,
                     ToolTipIcon.Info);
             };
 
-            var forceSearchItem = new ToolStripMenuItem("Forçar Busca de Preços");
+            var forceSearchItem = new ToolStripMenuItem(MenuForcaBusca);
             forceSearchItem.Click += (_, __) => ForcePriceSearch();
 
-            var configItem = new ToolStripMenuItem("Configurações");
+            var configItem = new ToolStripMenuItem(MenuConfiguracoes);
             configItem.Click += (_, __) => ShowLogForm();
 
-            var relatorioItem = new ToolStripMenuItem("Relatório de Consultas");
+            var relatorioItem = new ToolStripMenuItem(MenuRelatorio);
             relatorioItem.Click += (_, __) => ShowRelatorioForm();
 
-            var exitItem = new ToolStripMenuItem("Sair");
+            var exitItem = new ToolStripMenuItem(MenuSair);
             exitItem.Click += (_, __) => ExitApplication();
 
             contextMenu.Items.Add(statusItem);
@@ -185,18 +218,18 @@ namespace BuscaPreco.Presentation.WindowsForms
                 _logger.Info("Forçar Busca de Preços executado. Itens no cache: {Quantidade}.", quantidade);
 
                 _notifyIcon.ShowBalloonTip(
-                    3000,
-                    "Busca de Preços",
-                    $"Sincronização concluída. Itens no cache: {quantidade}.",
+                    BalloonTipDuracaoMs,
+                    BalloonTitleBusca,
+                    string.Format(BalloonMsgSincronizado, quantidade),
                     ToolTipIcon.Info);
             }
             catch (Exception ex)
             {
                 _logger.Error("Erro ao forçar busca de preços: {Message}", ex.Message);
                 _notifyIcon.ShowBalloonTip(
-                    3000,
-                    "Busca de Preços",
-                    "Falha ao executar a busca. Consulte o log para detalhes.",
+                    BalloonTipDuracaoMs,
+                    BalloonTitleBusca,
+                    BalloonMsgFalhaBusca,
                     ToolTipIcon.Error);
             }
         }
@@ -204,9 +237,9 @@ namespace BuscaPreco.Presentation.WindowsForms
         private void OnNotifyIconDoubleClick(object sender, EventArgs e)
         {
             _notifyIcon.ShowBalloonTip(
-                2000,
-                "BuscaPreço",
-                "Aplicação ativa na bandeja.",
+                BalloonTipDuracaoCurtaMs,
+                BalloonTitleApp,
+                BalloonMsgAppAtiva,
                 ToolTipIcon.Info);
 
             ShowConfiguracaoForm();
@@ -236,7 +269,6 @@ namespace BuscaPreco.Presentation.WindowsForms
             _logForm.Activate();
         }
 
-
         private void ShowRelatorioForm()
         {
             if (_relatorioForm == null || _relatorioForm.IsDisposed)
@@ -255,15 +287,14 @@ namespace BuscaPreco.Presentation.WindowsForms
             _relatorioForm.Activate();
         }
 
-        private Icon LoadTrayIcon()
+        private static Icon LoadTrayIcon()
         {
-            var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "buscapreco.ico");
-            if (File.Exists(iconPath))
-            {
-                return new Icon(iconPath);
-            }
+            var iconPath = Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                TrayIconAssetsFolder,
+                TrayIconFileName);
 
-            return SystemIcons.Application;
+            return File.Exists(iconPath) ? new Icon(iconPath) : SystemIcons.Application;
         }
 
         private void ExitApplication()

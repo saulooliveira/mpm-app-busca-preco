@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuscaPreco.Domain.Entities;
 
-namespace BuscaPreco.Infrastructure.Repositories
+namespace BuscaPreco.Infrastructure.Export
 {
     using System;
     using System.Collections.Generic;

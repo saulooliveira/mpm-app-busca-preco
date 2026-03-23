@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -6,14 +6,14 @@ using System.Reflection;
 using System.Text;
 using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
-using BuscaPreco.Application.Models;
+using BuscaPreco.Application.DTOs;
 using BuscaPreco.Application.Services;
 using BuscaPreco.CrossCutting;
 using BuscaPreco.Domain.Entities;
 using BuscaPreco.Domain.Interfaces;
-using BuscaPreco.Infrastructure.Data;
+using BuscaPreco.Infrastructure.Database;
 using BuscaPreco.Infrastructure.Repositories;
-using BuscaPreco.Infrastructure.Scrapers;
+using BuscaPreco.Infrastructure.Terminal;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Xunit;
@@ -75,7 +75,7 @@ public class BuscaPrecoSocketE2ETests
 
                 if (metodo is null)
                 {
-                    throw new InvalidOperationException("Não foi possível localizar método de resposta no terminal.");
+                    throw new InvalidOperationException("NÃ£o foi possÃ­vel localizar mÃ©todo de resposta no terminal.");
                 }
 
                 if (!string.IsNullOrWhiteSpace(resultado.des))

@@ -1,13 +1,13 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using BuscaPreco.Application.Interfaces;
-using BuscaPreco.Application.Models;
+using BuscaPreco.Application.DTOs;
 using BuscaPreco.CrossCutting;
-using BuscaPreco.Infrastructure.Data;
+using BuscaPreco.Infrastructure.Database;
 using BuscaPreco.Infrastructure.Repositories;
 
 namespace BuscaPreco.Application.Services
@@ -50,7 +50,7 @@ namespace BuscaPreco.Application.Services
 
             if (produtosSqlite.Count == 0)
             {
-                _logger.Info("ProdutoCacheService: SQLite vazio — importando DBF na inicialização.");
+                _logger.Info("ProdutoCacheService: SQLite vazio â€” importando DBF na inicializaÃ§Ã£o.");
                 SincronizarDbfParaSqlite();
                 produtosSqlite = _sqliteRepo.ListarTodos();
             }
@@ -72,7 +72,7 @@ namespace BuscaPreco.Application.Services
             {
                 if (string.IsNullOrWhiteSpace(_dbfFilePath) || !File.Exists(_dbfFilePath))
                 {
-                    _logger.Warning("ProdutoCacheService: DBF não encontrado para monitoramento: {Path}", _dbfFilePath);
+                    _logger.Warning("ProdutoCacheService: DBF nÃ£o encontrado para monitoramento: {Path}", _dbfFilePath);
                     return;
                 }
 
@@ -99,7 +99,7 @@ namespace BuscaPreco.Application.Services
             _debounceTimer?.Dispose();
             _debounceTimer = new System.Threading.Timer(_ =>
             {
-                _logger.Info("ProdutoCacheService: DBF modificado — iniciando ressincronização.");
+                _logger.Info("ProdutoCacheService: DBF modificado â€” iniciando ressincronizaÃ§Ã£o.");
                 SincronizarAgora();
             }, null, DebounceMs, System.Threading.Timeout.Infinite);
         }
@@ -127,7 +127,7 @@ namespace BuscaPreco.Application.Services
             {
                 if (_syncInProgress)
                 {
-                    _logger.Info("ProdutoCacheService: sincronização já em andamento — ignorando.");
+                    _logger.Info("ProdutoCacheService: sincronizaÃ§Ã£o jÃ¡ em andamento â€” ignorando.");
                     return;
                 }
                 _syncInProgress = true;
@@ -142,7 +142,7 @@ namespace BuscaPreco.Application.Services
                     novoL1[p.CodigoBarras] = p;
 
                 _l1 = novoL1;
-                _logger.Info("ProdutoCacheService: ressincronização concluída. {Count} produtos no cache.", novoL1.Count);
+                _logger.Info("ProdutoCacheService: ressincronizaÃ§Ã£o concluÃ­da. {Count} produtos no cache.", novoL1.Count);
             }
             catch (Exception ex)
             {

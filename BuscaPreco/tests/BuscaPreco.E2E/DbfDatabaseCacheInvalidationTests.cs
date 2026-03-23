@@ -1,7 +1,8 @@
 using Xunit;
 using System.Text;
 using BuscaPreco.CrossCutting;
-using BuscaPreco.Infrastructure.Data;
+using BuscaPreco.Infrastructure.Database;
+using BuscaPreco.Infrastructure.Database.Exceptions;
 using Serilog;
 
 namespace BuscaPreco.E2E;
@@ -20,7 +21,7 @@ public class DbfDatabaseCacheInvalidationTests
         // Assert.Equal("PRODUTO TESTE E2E", antes.des);
         // Assert.Equal(12.34m, antes.vlrVenda1);
 
-        // Setup crítico: altera bytes em posição textual do registro DBF e atualiza timestamp.
+        // Setup crÃ­tico: altera bytes em posiÃ§Ã£o textual do registro DBF e atualiza timestamp.
         SubstituirTextoNoArquivo(sourceDbfPath, "PRODUTO TESTE E2E", "PRODUTO ALTERADO ");
         Thread.Sleep(1200);
         File.SetLastWriteTime(sourceDbfPath, DateTime.Now.AddSeconds(1));
@@ -73,7 +74,7 @@ public class DbfDatabaseCacheInvalidationTests
         var target = Encoding.ASCII.GetBytes(novo);
 
         var index = IndexOf(bytes, source);
-        // Assert.True(index >= 0, "Texto original não encontrado no fixture DBF.");
+        // Assert.True(index >= 0, "Texto original nÃ£o encontrado no fixture DBF.");
 
         Buffer.BlockCopy(target, 0, bytes, index, target.Length);
         File.WriteAllBytes(filePath, bytes);

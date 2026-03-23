@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using BuscaPreco.Application.Models;
+using BuscaPreco.Application.DTOs;
 using BuscaPreco.CrossCutting;
-using BuscaPreco.Infrastructure.Data;
+using BuscaPreco.Infrastructure.Database;
 using Microsoft.Data.Sqlite;
 
 namespace BuscaPreco.Infrastructure.Repositories
@@ -37,7 +37,7 @@ namespace BuscaPreco.Infrastructure.Repositories
                     using var cmdInsert = conn.CreateCommand();
                     cmdInsert.Transaction = tx;
                     cmdInsert.CommandText = @"
-                        INSERT INTO produtos
+                        INSERT OR REPLACE INTO produtos
                             (codigo_barras, descricao, preco, unidade, ultima_atualizacao)
                         VALUES
                             (@cod, @desc, @preco, @uni, @ts);

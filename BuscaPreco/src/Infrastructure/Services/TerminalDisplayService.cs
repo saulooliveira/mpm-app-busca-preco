@@ -1,5 +1,5 @@
-using BuscaPreco.Application.Interfaces;
-using BuscaPreco.Infrastructure.Scrapers;
+﻿using BuscaPreco.Application.Interfaces;
+using BuscaPreco.Infrastructure.Terminal;
 
 namespace BuscaPreco.Infrastructure.Services
 {

@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 
-namespace BuscaPreco.Application.Models
+namespace BuscaPreco.Application.DTOs
 {
     /// <summary>
-    /// Entrada do cache L1 (memória) para um produto.
+    /// Entrada do cache L1 (memÃ³ria) para um produto.
     /// </summary>
     public class ProdutoCacheEntry
     {

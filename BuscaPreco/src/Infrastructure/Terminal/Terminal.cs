@@ -8,7 +8,7 @@ using System.Threading;
 using System.Windows.Forms;
 using BuscaPreco.Domain.Entities;
 
-namespace BuscaPreco.Infrastructure.Scrapers
+namespace BuscaPreco.Infrastructure.Terminal
 {
     public class Terminal
     {

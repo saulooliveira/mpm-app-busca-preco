@@ -1,10 +1,10 @@
-using Xunit;
+﻿using Xunit;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using BuscaPreco.Application.Configurations;
 using BuscaPreco.CrossCutting;
-using BuscaPreco.Infrastructure.Scrapers;
+using BuscaPreco.Infrastructure.Terminal;
 using BuscaPreco.Infrastructure.Services;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -29,7 +29,7 @@ public class InfrastructureAndSecurityTests
         [
             "Status=Encontrado Codigo=1",
             "Status=Encontrado Codigo=2",
-            "Status=Não Cadastrado Codigo=3",
+            "Status=NÃ£o Cadastrado Codigo=3",
         ]);
 
         using var smtpServer = new FakeSmtpServer();
@@ -53,7 +53,7 @@ public class InfrastructureAndSecurityTests
         var body = await smtpServer.WaitForBodyAsync();
         // Assert.Contains("Total de consultas: 3", body);
         // Assert.Contains("Encontrados: 2", body);
-        // Assert.Contains("Não cadastrados: 1", body);
+        // Assert.Contains("NÃ£o cadastrados: 1", body);
     }
 
     [Fact]

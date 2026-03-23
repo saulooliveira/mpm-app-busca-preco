@@ -3,10 +3,15 @@ using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.Application.Services;
 using BuscaPreco.CrossCutting;
-using BuscaPreco.Infrastructure.Data;
+using BuscaPreco.Infrastructure.Config;
+using BuscaPreco.Infrastructure.Database;
+using BuscaPreco.Infrastructure.Database.Exceptions;
 using BuscaPreco.Infrastructure.Repositories;
-using BuscaPreco.Infrastructure.Scrapers;
+using BuscaPreco.Infrastructure.Terminal;
 using BuscaPreco.Infrastructure.Services;
+#if DEBUG
+using BuscaPreco.Infrastructure.Mock;
+#endif
 using BuscaPreco.Presentation.WindowsForms;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,22 +38,22 @@ namespace BuscaPreco
             }
             catch (DbfNotFoundException ex)
             {
-                string msg = "Não foi possível iniciar o BuscaPreço.\n\n" +
-                             "Arquivo de cadastro não encontrado:\n" + ex.FilePath + "\n\n" +
+                string msg = "N\u00e3o foi poss\u00edvel iniciar o BuscaPreco.\n\n" +
+                             "Arquivo de cadastro n\u00e3o encontrado:\n" + ex.FilePath + "\n\n" +
                              "Verifique o caminho em config.yaml e tente novamente.";
                 System.Windows.Forms.MessageBox.Show(
                     msg,
-                    "BuscaPreço — Erro de inicialização",
+                    "BuscaPreco \u2013 Erro de inicializa\u00e7\u00e3o",
                     System.Windows.Forms.MessageBoxButtons.OK,
                     System.Windows.Forms.MessageBoxIcon.Error);
                 return;
             }
             catch (Exception ex)
             {
-                string msg = "Erro inesperado ao iniciar o BuscaPreço:\n\n" + ex.Message;
+                string msg = "Erro inesperado ao iniciar o BuscaPreco:\n\n" + ex.Message;
                 System.Windows.Forms.MessageBox.Show(
                     msg,
-                    "BuscaPreço — Erro",
+                    "BuscaPreco \u2013 Erro",
                     System.Windows.Forms.MessageBoxButtons.OK,
                     System.Windows.Forms.MessageBoxIcon.Error);
                 return;
@@ -84,6 +89,7 @@ namespace BuscaPreco
                 })
                 .ConfigureServices((context, services) =>
                 {
+                    // ── Configurations (shared) ──────────────────────────────
                     services.Configure<DbfConfig>(context.Configuration.GetSection("DbfConfig"));
                     services.Configure<TerminalConfig>(context.Configuration.GetSection("Terminal"));
                     services.Configure<EmailConfig>(context.Configuration.GetSection("Email"));
@@ -91,8 +97,29 @@ namespace BuscaPreco
                     services.Configure<ProdutosFixadosConfig>(context.Configuration.GetSection("ProdutosFixados"));
                     services.Configure<AudioConfig>(context.Configuration.GetSection("AudioConfig"));
 
-                    services.AddSingleton(sp => sp.GetRequiredService<IOptions<DbfConfig>>().Value);
                     services.AddSingleton<Logger>();
+
+#if DEBUG
+                    // ── MOCK MODE ────────────────────────────────────────────
+                    // Infra fisica (DBF, SQLite, socket, email, webhook)
+                    // substituida por implementacoes em memoria.
+                    Log.Information("[MOCK MODE] Build Debug — registrando servicos mock.");
+
+                    services.AddSingleton<IProdutoCacheService,      MockProdutoCacheService>();
+                    services.AddSingleton<IBuscaPrecosService,       MockBuscaPrecosService>();
+                    services.AddSingleton<IAlertService,             MockAlertService>();
+                    services.AddSingleton<IEmailService,             MockEmailService>();
+                    services.AddSingleton<ITerminalDisplayService,   MockTerminalDisplayService>();
+                    services.AddSingleton<MockConsultaRepository>();
+                    services.AddSingleton<ConsultaRepository>(sp =>  sp.GetRequiredService<MockConsultaRepository>());
+                    services.AddSingleton<MockServidor>();
+                    services.AddSingleton<Servidor>(sp =>            sp.GetRequiredService<MockServidor>());
+                    services.AddSingleton<ITerminalActivityMonitor,  TerminalActivityMonitor>();
+                    services.AddSingleton<AudioService>();
+                    services.AddSingleton<YamlConfigWriter>();
+#else
+                    // ── PRODUCAO ─────────────────────────────────────────────
+                    services.AddSingleton(sp => sp.GetRequiredService<IOptions<DbfConfig>>().Value);
                     services.AddSingleton<YamlConfigWriter>();
                     services.AddSingleton<ConsultaDbContext>();
                     services.AddSingleton<ProdutoSqliteRepository>();
@@ -105,15 +132,18 @@ namespace BuscaPreco
                     services.AddSingleton<DbfDatabase>(sp =>
                     {
                         var dbfConfig = sp.GetRequiredService<DbfConfig>();
-                        var logger = sp.GetRequiredService<Logger>();
+                        var logger    = sp.GetRequiredService<Logger>();
                         return new DbfDatabase(dbfConfig.DbfFilePath, logger);
                     });
 
-                    services.AddSingleton<ITerminalActivityMonitor, TerminalActivityMonitor>();
-                    services.AddSingleton<IBuscaPrecosService, BuscaPrecosService>();
-                    services.AddSingleton<IAlertService, WebhookAlertService>();
-                    services.AddSingleton<ITerminalDisplayService, TerminalDisplayService>();
-                    services.AddSingleton<IEmailService, EmailService>();
+                    services.AddSingleton<ITerminalActivityMonitor,  TerminalActivityMonitor>();
+                    services.AddSingleton<IBuscaPrecosService,       BuscaPrecosService>();
+                    services.AddSingleton<IAlertService,             WebhookAlertService>();
+                    services.AddSingleton<ITerminalDisplayService,   TerminalDisplayService>();
+                    services.AddSingleton<IEmailService,             EmailService>();
+#endif
+
+                    // ── Hosted services e UI (comuns) ────────────────────────
                     services.AddHostedService<RelatorioDiarioBackgroundService>();
                     services.AddHostedService<ScreensaverPromocionalBackgroundService>();
 

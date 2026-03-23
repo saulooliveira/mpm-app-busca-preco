@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
 using BuscaPreco.CrossCutting;
-using BuscaPreco.Infrastructure.Data;
+using BuscaPreco.Infrastructure.Database;
 using Microsoft.Data.Sqlite;
 
 namespace BuscaPreco.Infrastructure.Repositories
 {
     /// <summary>
     /// Persiste e consulta registros de auditoria de consultas no SQLite.
-    /// Todos os métodos são fire-and-forget safe: exceções são capturadas e logadas,
-    /// nunca propagadas para o fluxo principal de negócio.
+    /// Todos os mÃ©todos sÃ£o fire-and-forget safe: exceÃ§Ãµes sÃ£o capturadas e logadas,
+    /// nunca propagadas para o fluxo principal de negÃ³cio.
     /// </summary>
     public class ConsultaRepository
     {
@@ -23,9 +23,9 @@ namespace BuscaPreco.Infrastructure.Repositories
         }
 
         /// <summary>
-        /// Grava uma consulta na tabela consultas. Nunca lança exceção.
+        /// Grava uma consulta na tabela consultas. Nunca lanÃ§a exceÃ§Ã£o.
         /// </summary>
-        public void Gravar(string codigoBarras, string nome, string preco, bool encontrado, string origem)
+        public virtual void Gravar(string codigoBarras, string nome, string preco, bool encontrado, string origem)
         {
             try
             {
@@ -39,7 +39,7 @@ namespace BuscaPreco.Infrastructure.Repositories
                 cmd.Parameters.AddWithValue("@cod", codigoBarras);
                 cmd.Parameters.AddWithValue("@nome", nome ?? string.Empty);
                 cmd.Parameters.AddWithValue("@preco", preco ?? string.Empty);
-                cmd.Parameters.AddWithValue("@status", encontrado ? "Encontrado" : "Não Cadastrado");
+                cmd.Parameters.AddWithValue("@status", encontrado ? "Encontrado" : "NÃ£o Cadastrado");
                 cmd.Parameters.AddWithValue("@origem", origem ?? string.Empty);
                 cmd.ExecuteNonQuery();
             }
@@ -50,10 +50,10 @@ namespace BuscaPreco.Infrastructure.Repositories
         }
 
         /// <summary>
-        /// Retorna total, encontrados e não cadastrados no período [inicio, fim] inclusive.
-        /// fim é tratado como fim do dia (fim + 1 dia às 00:00:00).
+        /// Retorna total, encontrados e nÃ£o cadastrados no perÃ­odo [inicio, fim] inclusive.
+        /// fim Ã© tratado como fim do dia (fim + 1 dia Ã s 00:00:00).
         /// </summary>
-        public (int total, int encontrados, int naoCadastrados) ResumoNoPeriodo(DateTime inicio, DateTime fim)
+        public virtual (int total, int encontrados, int naoCadastrados) ResumoNoPeriodo(DateTime inicio, DateTime fim)
         {
             try
             {
@@ -63,7 +63,7 @@ namespace BuscaPreco.Infrastructure.Repositories
                     SELECT
                         COUNT(*) AS total,
                         SUM(CASE WHEN status = 'Encontrado'     THEN 1 ELSE 0 END) AS encontrados,
-                        SUM(CASE WHEN status = 'Não Cadastrado' THEN 1 ELSE 0 END) AS nao_cadastrados
+                        SUM(CASE WHEN status = 'NÃ£o Cadastrado' THEN 1 ELSE 0 END) AS nao_cadastrados
                     FROM consultas
                     WHERE data_hora >= @inicio
                       AND data_hora <  @fim_exclusivo;
@@ -89,10 +89,10 @@ namespace BuscaPreco.Infrastructure.Repositories
         }
 
         /// <summary>
-        /// Top produtos encontrados por quantidade de consultas no período.
+        /// Top produtos encontrados por quantidade de consultas no perÃ­odo.
         /// Retorna lista de (codigo, nome, quantidade) ordenada DESC.
         /// </summary>
-        public List<(string codigo, string nome, int qtd)> TopProdutos(DateTime inicio, DateTime fim, int top = 200)
+        public virtual List<(string codigo, string nome, int qtd)> TopProdutos(DateTime inicio, DateTime fim, int top = 200)
         {
             var result = new List<(string, string, int)>();
             try
@@ -129,10 +129,10 @@ namespace BuscaPreco.Infrastructure.Repositories
         }
 
         /// <summary>
-        /// Retorna array[24] com contagem de consultas por hora do dia (0=00h … 23=23h).
-        /// SQLite: strftime('%H', data_hora) retorna '00'…'23'.
+        /// Retorna array[24] com contagem de consultas por hora do dia (0=00h â€¦ 23=23h).
+        /// SQLite: strftime('%H', data_hora) retorna '00'â€¦'23'.
         /// </summary>
-        public int[] ConsultasPorHora(DateTime inicio, DateTime fim)
+        public virtual int[] ConsultasPorHora(DateTime inicio, DateTime fim)
         {
             var result = new int[24];
             try
@@ -169,10 +169,10 @@ namespace BuscaPreco.Infrastructure.Repositories
 
         /// <summary>
         /// Retorna array[7] com contagem por dia da semana.
-        /// SQLite strftime('%w'): 0=Domingo, 1=Segunda … 6=Sábado.
-        /// Labels no RelatorioForm devem seguir esta ordem: Dom, Seg, Ter, Qua, Qui, Sex, Sáb.
+        /// SQLite strftime('%w'): 0=Domingo, 1=Segunda â€¦ 6=SÃ¡bado.
+        /// Labels no RelatorioForm devem seguir esta ordem: Dom, Seg, Ter, Qua, Qui, Sex, SÃ¡b.
         /// </summary>
-        public int[] ConsultasPorDiaSemana(DateTime inicio, DateTime fim)
+        public virtual int[] ConsultasPorDiaSemana(DateTime inicio, DateTime fim)
         {
             var result = new int[7];
             try

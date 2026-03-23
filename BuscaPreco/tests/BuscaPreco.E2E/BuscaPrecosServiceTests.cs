@@ -1,8 +1,8 @@
-using Xunit;
+﻿using Xunit;
 using System.Linq;
 using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
-using BuscaPreco.Application.Models;
+using BuscaPreco.Application.DTOs;
 using BuscaPreco.Application.Services;
 using BuscaPreco.CrossCutting;
 using BuscaPreco.Domain.Entities;
@@ -47,7 +47,7 @@ public class BuscaPrecosServiceTests
         // Assert.True(string.IsNullOrWhiteSpace(resultado.des));
         // Assert.Equal(0m, resultado.vlrVenda1);
         // Assert.Equal("#nfound", string.IsNullOrWhiteSpace(resultado.des) ? "#nfound" : "");
-        // Assert.Contains(sink.Events, e => e.RenderMessage().Contains("Status=Não Cadastrado"));
+        // Assert.Contains(sink.Events, e => e.RenderMessage().Contains("Status=NÃ£o Cadastrado"));
         // Assert.Equal("99999", alertService.CodigoRecebido);
     }
 

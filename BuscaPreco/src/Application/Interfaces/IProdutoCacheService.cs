@@ -1,5 +1,5 @@
-using System.Collections.Generic;
-using BuscaPreco.Application.Models;
+﻿using System.Collections.Generic;
+using BuscaPreco.Application.DTOs;
 
 namespace BuscaPreco.Application.Interfaces
 {

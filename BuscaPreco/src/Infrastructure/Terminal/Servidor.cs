@@ -8,7 +8,7 @@ using BuscaPreco.Application.Configurations;
 using BuscaPreco.CrossCutting;
 using Microsoft.Extensions.Options;
 
-namespace BuscaPreco.Infrastructure.Scrapers
+namespace BuscaPreco.Infrastructure.Terminal
 {
     public class Servidor
     {
