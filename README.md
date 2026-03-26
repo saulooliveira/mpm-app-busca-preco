@@ -1,151 +1,136 @@
-# BuscaPreco
+# 🔍 BuscaPreco - Backend para Terminais de Consulta
 
-O **BuscaPreco** é um backend local para supermercados, executado em **Windows (System Tray)**, que integra o terminal físico **Gertec Busca Preço G2 E** com a base local de produtos em **.dbf**. O objetivo é permitir que o cliente consulte preço no totem e receba resposta imediata via rede TCP/IP, com rastreabilidade por logs.
+O **BuscaPreco** é uma solução robusta de backend local desenvolvida em **.NET 8**, projetada para integrar terminais físicos de consulta de preço (como o **Gertec Busca Preço G2 E**) com bases de dados legadas em formato **.dbf**. 
 
-## Arquitetura e estrutura do projeto
+A aplicação opera de forma discreta na bandeja do sistema (**System Tray**) do Windows, garantindo alta disponibilidade e respostas imediatas via protocolo TCP/IP, com total rastreabilidade através de logs detalhados e auditoria em SQLite.
 
-A solução está organizada em camadas seguindo princípios de **Clean Architecture**.
+---
+
+## 🏗️ Arquitetura do Sistema
+
+O projeto adota os princípios da **Clean Architecture**, promovendo a separação de preocupações, facilidade de testes e independência de frameworks externos.
+
+### Estrutura de Pastas
 
 ```text
 BuscaPreco/
 ├── src/
-│   ├── Domain/                      # Núcleo de negócio (entidades e contratos de domínio)
-│   │   ├── Entities/
-│   │   └── Interfaces/
-│   ├── Application/                 # Casos de uso, orquestração e contratos de aplicação
-│   │   ├── Configurations/
-│   │   ├── Interfaces/
-│   │   └── Services/
-│   ├── Infrastructure/              # Implementações técnicas (DBF, socket, e-mail, adapters)
-│   │   ├── Data/
-│   │   ├── HttpClients/
-│   │   ├── Repositories/
-│   │   ├── Scrapers/
-│   │   └── Services/
-│   ├── Presentation/                # Camada de interface (WinForms + System Tray)
-│   │   └── WindowsForms/
-│   └── CrossCutting/                # Utilitários transversais (logs, validações)
-├── Tests/
-│   ├── UnitTests/                   # Espaço para testes unitários
-│   └── IntegrationTests/            # Espaço para testes de integração
-├── BuscaPreco.csproj                # Projeto WinForms (.NET 8 / net8.0-windows)
-├── config.example.yaml              # Template versionável de configuração
-└── config.yaml                      # Configuração local (ignorada por segurança)
+│   ├── Domain/          # Núcleo de negócio: Entidades e Contratos (Interfaces)
+│   ├── Application/     # Casos de uso: Serviços, DTOs e Orquestração
+│   ├── Infrastructure/  # Detalhes técnicos: Acesso a dados (DBF/SQLite), Sockets, E-mail
+│   ├── Presentation/    # Interface com usuário: WinForms e System Tray
+│   └── CrossCutting/    # Preocupações transversais: Logging (Serilog), Validações
+├── tests/
+│   └── BuscaPreco.E2E/  # Testes de ponta a ponta (End-to-End) e Integração
+├── scripts/             # Utilitários de automação e manutenção
+└── BuscaPreco.sln       # Solução principal do Visual Studio
 ```
 
-### Responsabilidade por camada
+### Componentes Principais
 
-- **Domain**: representa regras de negócio puras e contratos centrais, sem dependência de tecnologia.
-- **Application**: implementa os fluxos de consulta de preço e integra os contratos de domínio com a infraestrutura.
-- **Infrastructure**: concentra acesso técnico (socket TCP/IP, leitura DBF com dBASE.NET, serviços auxiliares).
-- **Presentation**: inicialização da aplicação desktop, contexto de tray e interação com operador.
-- **CrossCutting**: componentes utilitários reutilizados entre camadas.
+| Camada | Responsabilidade |
+| :--- | :--- |
+| **Domain** | Define o modelo de `Produto` e as interfaces de repositório. |
+| **Application** | Gerencia o cache de produtos, monitora atividade do terminal e orquestra a busca. |
+| **Infrastructure** | Implementa o servidor de Socket TCP, leitura de arquivos `.dbf` e persistência de auditoria em SQLite. |
+| **Presentation** | Gerencia o ciclo de vida da aplicação no Windows e formulários de configuração/relatórios. |
 
-## Fluxo de consulta de preço (Mermaid)
+---
+
+## 🔄 Fluxo de Operação
+
+O diagrama abaixo ilustra o ciclo de vida de uma consulta de preço, desde o acionamento no terminal físico até a resposta visual para o cliente.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant T as Terminal Gertec (Busca Preço G2 E)
-    participant S as Infrastructure.SocketListener (Servidor)
-    participant A as Application.IBuscaPrecosService
-    participant R as Infrastructure.ProdutoRepository (.dbf)
-    participant L as Log (Serilog)
+    participant T as Terminal (Gertec G2)
+    participant S as Infra: Socket Server
+    participant A as App: BuscaPrecosService
+    participant C as App: ProdutoCache
+    participant R as Infra: ProdutoRepository (.dbf)
+    participant DB as Infra: Auditoria (SQLite)
 
-    T->>S: Envia código de barras via TCP/IP
-    S->>A: Solicita consulta por código
-    A->>R: BuscarProduto(codigoBarras)
-    R-->>A: Produto + preço (ou não cadastrado)
-    A->>L: Registrar consulta (código, status, preço, data/hora)
-    A-->>S: Retorna payload de resposta
-    S-->>T: Envia preço ao terminal
+    T->>S: Envia código de barras (TCP)
+    S->>A: Solicita consulta
+    A->>C: Verifica Cache
+    alt Não está no Cache
+        C->>R: Busca no arquivo .dbf
+        R-->>C: Retorna dados do produto
+    end
+    C-->>A: Retorna Produto + Preço
+    par Registro de Auditoria
+        A->>DB: Grava log de consulta (SQLite)
+    and Resposta ao Terminal
+        A-->>S: Retorna payload formatado
+        S-->>T: Envia resposta ao display
+    end
 ```
 
-## Setup local
+---
 
-As instruções abaixo mostram como preparar, compilar e executar o projeto em uma máquina Windows. Uso recomendado em PowerShell (Windows PowerShell v5.1) ou via Visual Studio.
+## 🚀 Guia de Instalação e Configuração
 
-### 1) Pré-requisitos
+### Pré-requisitos
 
-- Windows com o .NET 8 SDK (ou .NET Desktop Runtime para Windows) instalado. Verifique o TargetFramework em `BuscaPreco.csproj` se tiver dúvidas.
-- Visual Studio 2022 (ou Build Tools) com MSBuild (opcional).
-- dotnet CLI (incluído no .NET 8 SDK) disponível no PATH — recomendado para restore/build/run.
+*   **Runtime**: [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) (Windows x64).
+*   **Desenvolvimento**: Visual Studio 2022 ou VS Code com C# Dev Kit.
+*   **Base de Dados**: Acesso de leitura ao arquivo `.dbf` do sistema de automação comercial.
 
-Observação: este projeto usa .NET 8 (TargetFramework `net8.0-windows`). Certifique-se de ter o .NET 8 SDK/Runtime instalado; abra `BuscaPreco.csproj` no Visual Studio para confirmar o TargetFramework se necessário.
+### Configuração Inicial
 
-### 2) Restaurar pacotes
+1.  Clone o repositório:
+    ```powershell
+    git clone https://github.com/saulooliveira/mpm-app-busca-preco.git
+    ```
+2.  Prepare o arquivo de configuração:
+    ```powershell
+    copy .\BuscaPreco\config.example.yaml .\BuscaPreco\config.yaml
+    ```
+3.  Edite o `config.yaml` com as informações do seu ambiente:
+    *   `DbfPath`: Caminho absoluto para o arquivo de produtos.
+    *   `Porta`: Porta TCP (padrão Gertec é 9100 ou conforme configurado no terminal).
+    *   `Email`: Configurações de SMTP para envio de relatórios diários.
 
-Usando dotnet CLI (PowerShell):
+---
 
-```powershell
-dotnet restore .\BuscaPreco.sln
-```
+## 🛠️ Desenvolvimento e Build
 
-Ou abra a solução no Visual Studio e selecione: Project -> Restore NuGet Packages.
+### Comandos Úteis (CLI)
 
-### 3) Configuração de ambiente
+*   **Restaurar Dependências**:
+    ```powershell
+    dotnet restore
+    ```
+*   **Compilar em Modo Release**:
+    ```powershell
+    dotnet build -c Release
+    ```
+*   **Executar Testes E2E**:
+    ```powershell
+    dotnet test .\BuscaPreco\tests\BuscaPreco.E2E\BuscaPreco.E2E.csproj
+    ```
+*   **Publicar Executável Único**:
+    ```powershell
+    dotnet publish .\BuscaPreco\BuscaPreco.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+    ```
 
-1. Copie o arquivo de exemplo para criar sua configuração local (PowerShell):
+---
 
-```powershell
-Copy-Item -Path .\BuscaPreco\config.example.yaml -Destination .\BuscaPreco\config.yaml
-```
+## 📊 Funcionalidades de Auditoria
 
-2. Edite `BuscaPreco\config.yaml` e ajuste os valores para seu ambiente:
-- caminho do arquivo DBF
-- porta TCP do terminal
-- SMTP e credenciais (se usar relatório por e-mail)
-- parâmetros de log (nível, arquivo, rota)
+O **BuscaPreco** não apenas responde consultas, mas também gera inteligência de negócio:
 
-Importante: `config.yaml` está no .gitignore por segurança; não comite credenciais.
+*   **Logs em Tempo Real**: Utiliza Serilog para registrar eventos do sistema e erros de comunicação.
+*   **Banco de Dados de Consultas**: Todas as buscas (sucesso ou falha) são gravadas em um banco SQLite local (`buscapreco.db`).
+*   **Relatórios**: Interface integrada para visualização de produtos mais consultados e horários de pico.
+*   **Alertas**: Notificações via Webhook ou E-mail para produtos não encontrados na base.
 
-### 4) Compilar
+---
 
-Via dotnet CLI (PowerShell):
+## ⚖️ Licença
 
-```powershell
-dotnet build .\BuscaPreco.sln -c Release
-```
+Este projeto está sob a licença descrita no arquivo [LICENSE](LICENSE).
 
-Ou use o Visual Studio: abra a solução `BuscaPreco.sln` e escolha Build -> Build Solution (ajuste Configuration/Platform conforme necessário).
-
-Para gerar artefatos prontos para distribuição use `dotnet publish`:
-
-```powershell
-dotnet publish .\BuscaPreco\BuscaPreco.csproj -c Release -r win-x64 -o .\publish
-```
-
-Após a build/publish, os caminhos típicos de saída são:
-
-- `BuscaPreco\bin\Release\` ou
-- `BuscaPreco\bin\Release\net8.0-windows\` ou
-- `BuscaPreco\publish\` (quando usar `dotnet publish`)
-
-### 5) Executar
-
-1. Verifique se `BuscaPreco\config.yaml` existe e está configurado.
-
-2a. Executar diretamente com dotnet (útil para desenvolvimento):
-
-```powershell
-dotnet run --project .\BuscaPreco\BuscaPreco.csproj --configuration Release
-```
-
-2b. Executar o binário gerado após build/publish (exemplo PowerShell):
-
-```powershell
-Start-Process -FilePath .\BuscaPreco\bin\Release\net8.0-windows\BuscaPreco.exe
-```
-
-Ou execute o executável dentro da pasta `publish` se tiver usado `dotnet publish`.
-
-A aplicação roda em System Tray e ficará escutando a porta configurada para atender o terminal (TCP/IP).
-
-### 6) Troubleshooting rápido
-
-- Porta em uso: verifique se a porta configurada está livre ou altere-a no `config.yaml`.
-- Permissões: se a aplicação usa portas baixas ou recursos restritos, execute o binário como Administrador.
-- Logs: verifique os arquivos de log configurados (Serilog) para mensagens de start/erro.
-- Erro ao restaurar pacotes: abra a solução no Visual Studio e clique em Restore NuGet Packages; confirme a versão do .NET alvo em `BuscaPreco.csproj`.
-
-Se quiser, eu posso também adicionar um pequeno script PowerShell `scripts\run.ps1` que automatize restore -> build -> run. Informe se deseja que eu crie isso.
+---
+*Desenvolvido para garantir agilidade e confiabilidade no ponto de venda.*
