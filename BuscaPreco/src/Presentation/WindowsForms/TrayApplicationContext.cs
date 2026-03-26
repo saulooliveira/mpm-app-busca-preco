@@ -18,6 +18,7 @@ namespace BuscaPreco.Presentation.WindowsForms
         private readonly Logger _logger;
         private readonly Servidor _servidor;
         private readonly Func<ConfiguracaoForm> _logFormFactory;
+        private readonly Func<RelatorioForm> _relatorioFormFactory;
         private readonly ArrayList _terminaisConectados;
         private readonly AudioService _audioService;
         private readonly IProdutoCacheService _produtoCacheService;

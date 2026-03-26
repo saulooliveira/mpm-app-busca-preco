@@ -48,9 +48,27 @@ namespace BuscaPreco.Application.Services
         {
             var produtosSqlite = _sqliteRepo.ListarTodos();
 
-            if (produtosSqlite.Count == 0)
+            bool precisaRessinc = produtosSqlite.Count == 0;
+
+            if (!precisaRessinc && produtosSqlite.Count > 0)
             {
-                _logger.Info("ProdutoCacheService: SQLite vazio — importando DBF na inicialização.");
+                var primeiroCodigo = produtosSqlite[0].CodigoBarras ?? string.Empty;
+                var dbfProdutos = _dbfDatabase.ListarTudo();
+                if (dbfProdutos.Count > 0)
+                {
+                    var primeiroDbf = dbfProdutos[0].CodigoItem ?? string.Empty;
+                    if (primeiroDbf.Length != primeiroCodigo.Length)
+                    {
+                        _logger.Info("ProdutoCacheService: formato de código mudou (SQLite={SQLite}, DBF={DBF}) — forçando ressincronização.",
+                            primeiroCodigo, primeiroDbf);
+                        precisaRessinc = true;
+                    }
+                }
+            }
+
+            if (precisaRessinc)
+            {
+                _logger.Info("ProdutoCacheService: importando/atualizando DBF no SQLite.");
                 SincronizarDbfParaSqlite();
                 produtosSqlite = _sqliteRepo.ListarTodos();
             }
