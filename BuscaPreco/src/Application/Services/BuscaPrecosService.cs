@@ -6,6 +6,7 @@ using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.CrossCutting;
 using BuscaPreco.Domain.Entities;
+using BuscaPreco.Infrastructure.Repositories;
 using Microsoft.Extensions.Options;
 
 namespace BuscaPreco.Application.Services
@@ -16,19 +17,22 @@ namespace BuscaPreco.Application.Services
         private readonly IAlertService _alertService;
         private readonly ITerminalActivityMonitor _terminalActivityMonitor;
         private readonly Logger _logger;
+        private readonly ConsultaRepository _consultaRepository;
 
         public BuscaPrecosService(
             IProdutoCacheService produtoCacheService,
             IAlertService alertService,
             ITerminalActivityMonitor terminalActivityMonitor,
             IOptions<FeatureConfig> featureOptions,
-            Logger logger)
+            Logger logger,
+            ConsultaRepository consultaRepository)
         {
             _ = featureOptions;
             _produtoCacheService = produtoCacheService;
             _alertService = alertService;
             _terminalActivityMonitor = terminalActivityMonitor;
             _logger = logger;
+            _consultaRepository = consultaRepository;
         }
 
         public (string des, decimal vlrVenda1) BuscarPorCodigo(string codigo)
@@ -67,15 +71,24 @@ namespace BuscaPreco.Application.Services
         private void LogAuditoria(string codigo, string nome, decimal preco)
         {
             var encontrado = !string.IsNullOrWhiteSpace(nome);
+            var precoStr = encontrado ? preco.ToString("N2") : "0,00";
+
             _logger.Info(
                 "AuditoriaConsulta DataHora={DataHora} CodigoBarras={CodigoBarras} " +
                 "Nome={Nome} Preco={Preco} Status={Status} Origem={Origem}",
                 DateTime.Now,
                 codigo,
                 encontrado ? nome : string.Empty,
-                encontrado ? preco.ToString("N2") : "0,00",
+                precoStr,
                 encontrado ? "Encontrado" : "Não Cadastrado",
                 "SQLite");
+
+            _consultaRepository.Gravar(
+                codigoBarras: codigo,
+                nome: encontrado ? nome : string.Empty,
+                preco: precoStr,
+                encontrado: encontrado,
+                origem: "SQLite");
         }
     }
 }

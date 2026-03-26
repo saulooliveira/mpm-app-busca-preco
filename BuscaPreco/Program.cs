@@ -96,6 +96,7 @@ namespace BuscaPreco
                     services.AddSingleton<YamlConfigWriter>();
                     services.AddSingleton<ConsultaDbContext>();
                     services.AddSingleton<ProdutoSqliteRepository>();
+                    services.AddSingleton<ConsultaRepository>();
                     services.AddSingleton<ProdutoCacheService>();
                     services.AddSingleton<IProdutoCacheService>(sp => sp.GetRequiredService<ProdutoCacheService>());
                     services.AddSingleton<AudioService>();
@@ -121,6 +122,8 @@ namespace BuscaPreco
 
                     services.AddTransient<ConfiguracaoForm>();
                     services.AddSingleton<Func<ConfiguracaoForm>>(sp => () => sp.GetRequiredService<ConfiguracaoForm>());
+                    services.AddTransient<RelatorioForm>();
+                    services.AddSingleton<Func<RelatorioForm>>(sp => () => sp.GetRequiredService<RelatorioForm>());
                     services.AddSingleton<TrayApplicationContext>();
                 })
                 .Build();

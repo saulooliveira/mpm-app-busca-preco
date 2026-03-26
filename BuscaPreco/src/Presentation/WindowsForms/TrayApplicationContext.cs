@@ -24,6 +24,7 @@ namespace BuscaPreco.Presentation.WindowsForms
         private readonly IProdutoCacheService _produtoCacheService;
         private ConfiguracaoForm _logForm;
         private RelatorioForm _relatorioForm;
+        private readonly Func<RelatorioForm> _relatorioFormFactory;
 
         public TrayApplicationContext(
             IBuscaPrecosService buscaPrecosService,
@@ -236,6 +237,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             _logForm.Activate();
         }
 
+
         private void ShowRelatorioForm()
         {
             if (_relatorioForm == null || _relatorioForm.IsDisposed)
@@ -245,7 +247,9 @@ namespace BuscaPreco.Presentation.WindowsForms
             }
 
             if (!_relatorioForm.Visible)
+            {
                 _relatorioForm.Show();
+            }
 
             _relatorioForm.WindowState = FormWindowState.Normal;
             _relatorioForm.BringToFront();
