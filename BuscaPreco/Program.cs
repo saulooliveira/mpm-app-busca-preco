@@ -100,9 +100,10 @@ namespace BuscaPreco
                     services.AddSingleton<ProdutoCacheService>();
                     services.AddSingleton<IProdutoCacheService>(sp => sp.GetRequiredService<ProdutoCacheService>());
                     services.AddSingleton<AudioService>();
-                    services.AddSingleton<RelatorioLogService>();
+                    
                     services.AddTransient<RelatorioForm>();
                     services.AddSingleton<Func<RelatorioForm>>(sp => () => sp.GetRequiredService<RelatorioForm>());
+                    
                     services.AddSingleton<Servidor>();
 
                     services.AddSingleton<DbfDatabase>(sp =>
@@ -122,8 +123,7 @@ namespace BuscaPreco
 
                     services.AddTransient<ConfiguracaoForm>();
                     services.AddSingleton<Func<ConfiguracaoForm>>(sp => () => sp.GetRequiredService<ConfiguracaoForm>());
-                    services.AddTransient<RelatorioForm>();
-                    services.AddSingleton<Func<RelatorioForm>>(sp => () => sp.GetRequiredService<RelatorioForm>());
+                    
                     services.AddSingleton<TrayApplicationContext>();
                 })
                 .Build();
