@@ -31,13 +31,17 @@ public class BuscaPrecoSocketE2ETests
         var fixtureDbfPath = MaterializarFixtureDbf();
         var dbfDatabase = new DbfDatabase(fixtureDbfPath, logger);
         var repository = new ProdutoRepository(dbfDatabase);
+        
+        var dbContext = new ConsultaDbContext(Options.Create(new DbfConfig { DbfFilePath = fixtureDbfPath }), logger);
+        var consultaRepository = new ConsultaRepository(dbContext, logger);
 
         var buscaPrecosService = new BuscaPrecosService(
             new FakeProdutoCacheService(repository),
             new NullAlertService(),
             new NullTerminalActivityMonitor(),
             Options.Create(new FeatureConfig { CacheTTLMinutes = 10 }),
-            logger);
+            logger,
+            consultaRepository);
         
         // Debug: List all products in DBF
         var allProducts = repository.ListarTudo();
