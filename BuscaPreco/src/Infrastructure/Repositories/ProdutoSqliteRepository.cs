@@ -37,7 +37,7 @@ namespace BuscaPreco.Infrastructure.Repositories
                     using var cmdInsert = conn.CreateCommand();
                     cmdInsert.Transaction = tx;
                     cmdInsert.CommandText = @"
-                        INSERT INTO produtos
+                        INSERT OR REPLACE INTO produtos
                             (codigo_barras, descricao, preco, unidade, ultima_atualizacao)
                         VALUES
                             (@cod, @desc, @preco, @uni, @ts);
@@ -52,10 +52,12 @@ namespace BuscaPreco.Infrastructure.Repositories
                     string agora = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                     foreach (var p in produtos)
                     {
+                        if (string.IsNullOrWhiteSpace(p.CodigoBarras)) continue;
+
                         pCod.Value = p.CodigoBarras;
-                        pDesc.Value = p.Descricao;
+                        pDesc.Value = p.Descricao ?? string.Empty;
                         pPreco.Value = (double)p.Preco;
-                        pUni.Value = p.Unidade;
+                        pUni.Value = p.Unidade ?? string.Empty;
                         pTs.Value = agora;
                         cmdInsert.ExecuteNonQuery();
                     }
