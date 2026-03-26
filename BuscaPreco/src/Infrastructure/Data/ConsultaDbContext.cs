@@ -28,10 +28,10 @@ namespace BuscaPreco.Infrastructure.Data
             cmd.CommandText = @"
 CREATE TABLE IF NOT EXISTS consultas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    data_hora TEXT NOT NULL,
+    data_hora DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     codigo_barras TEXT NOT NULL,
     nome TEXT NOT NULL DEFAULT '',
-    preco TEXT NOT NULL DEFAULT '',
+    preco DECIMAL(18,2) NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT '',
     origem TEXT NOT NULL DEFAULT ''
 );
@@ -42,9 +42,9 @@ CREATE INDEX IF NOT EXISTS idx_consultas_codigo
 CREATE TABLE IF NOT EXISTS produtos (
     codigo_barras     TEXT    PRIMARY KEY,
     descricao         TEXT    NOT NULL DEFAULT '',
-    preco             REAL    NOT NULL DEFAULT 0,
+    preco             DECIMAL(18,2) NOT NULL DEFAULT 0,
     unidade           TEXT    NOT NULL DEFAULT '',
-    ultima_atualizacao TEXT   NOT NULL
+    ultima_atualizacao DATETIME NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_produtos_descricao

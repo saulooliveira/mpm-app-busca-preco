@@ -1,5 +1,5 @@
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -15,12 +15,12 @@ namespace BuscaPreco.Infrastructure.Scrapers
         public delegate void onReceiveCommand(object sender, string comando);
         public event onReceiveCommand onReceive;
 
-        public delegate void onChangeList(ArrayList lista);
+        public delegate void onChangeList(List<Terminal> lista);
         public event onChangeList onChange;
 
         private Socket server;
         private Socket cliente;
-        private readonly ArrayList listaTerminais;
+        private readonly List<Terminal> listaTerminais;
         private readonly object listaTerminaisLock = new object();
         private Task serverTask;
         private CancellationTokenSource cancellationTokenSource;
@@ -58,7 +58,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
         {
             this.logger = logger;
             terminalConfig = terminalOptions.Value;
-            listaTerminais = new ArrayList();
+            listaTerminais = new List<Terminal>();
             ipServer = new IPEndPoint(IPAddress.Any, terminalConfig.Porta);
         }
 
@@ -68,11 +68,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
             Terminal[] terminaisSnapshot;
             lock (listaTerminaisLock)
             {
-                terminaisSnapshot = new Terminal[listaTerminais.Count];
-                for (var i = 0; i < listaTerminais.Count; i++)
-                {
-                    terminaisSnapshot[i] = (Terminal)listaTerminais[i];
-                }
+                terminaisSnapshot = listaTerminais.ToArray();
             }
 
             foreach (var terminal in terminaisSnapshot)
@@ -86,11 +82,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
             Terminal[] terminaisSnapshot;
             lock (listaTerminaisLock)
             {
-                terminaisSnapshot = new Terminal[listaTerminais.Count];
-                for (var i = 0; i < listaTerminais.Count; i++)
-                {
-                    terminaisSnapshot[i] = (Terminal)listaTerminais[i];
-                }
+                terminaisSnapshot = listaTerminais.ToArray();
             }
 
             foreach (var terminal in terminaisSnapshot)
@@ -108,7 +100,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
             lock (listaTerminaisLock)
             {
                 if (index < 0 || index >= listaTerminais.Count) return null;
-                return (Terminal)listaTerminais[index];
+                return listaTerminais[index];
             }
         }
 
@@ -119,10 +111,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
         {
             lock (listaTerminaisLock)
             {
-                var arr = new Terminal[listaTerminais.Count];
-                for (int i = 0; i < listaTerminais.Count; i++)
-                    arr[i] = (Terminal)listaTerminais[i];
-                return arr;
+                return listaTerminais.ToArray();
             }
         }
 

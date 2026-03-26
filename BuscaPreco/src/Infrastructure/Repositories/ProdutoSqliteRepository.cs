@@ -21,7 +21,10 @@ namespace BuscaPreco.Infrastructure.Repositories
             _logger = logger;
         }
 
-        public void SubstituirTodos(IEnumerable<ProdutoCacheEntry> produtos)
+        /// <summary>
+        /// Sincroniza a lista de produtos de forma incremental (UPSERT).
+        /// </summary>
+        public void SincronizarProdutos(IEnumerable<ProdutoCacheEntry> produtos)
         {
             try
             {
@@ -29,39 +32,35 @@ namespace BuscaPreco.Infrastructure.Repositories
                 using var tx = conn.BeginTransaction();
                 try
                 {
-                    using var cmdDelete = conn.CreateCommand();
-                    cmdDelete.Transaction = tx;
-                    cmdDelete.CommandText = "DELETE FROM produtos;";
-                    cmdDelete.ExecuteNonQuery();
-
-                    using var cmdInsert = conn.CreateCommand();
-                    cmdInsert.Transaction = tx;
-                    cmdInsert.CommandText = @"
-                        INSERT INTO produtos
+                    // Usamos INSERT OR REPLACE para uma sincronização incremental eficiente (UPSERT)
+                    using var cmdUpsert = conn.CreateCommand();
+                    cmdUpsert.Transaction = tx;
+                    cmdUpsert.CommandText = @"
+                        INSERT OR REPLACE INTO produtos
                             (codigo_barras, descricao, preco, unidade, ultima_atualizacao)
                         VALUES
                             (@cod, @desc, @preco, @uni, @ts);
                     ";
 
-                    var pCod = cmdInsert.Parameters.Add("@cod", SqliteType.Text);
-                    var pDesc = cmdInsert.Parameters.Add("@desc", SqliteType.Text);
-                    var pPreco = cmdInsert.Parameters.Add("@preco", SqliteType.Real);
-                    var pUni = cmdInsert.Parameters.Add("@uni", SqliteType.Text);
-                    var pTs = cmdInsert.Parameters.Add("@ts", SqliteType.Text);
+                    var pCod = cmdUpsert.Parameters.Add("@cod", SqliteType.Text);
+                    var pDesc = cmdUpsert.Parameters.Add("@desc", SqliteType.Text);
+                    var pPreco = cmdUpsert.Parameters.Add("@preco", SqliteType.Real);
+                    var pUni = cmdUpsert.Parameters.Add("@uni", SqliteType.Text);
+                    var pTs = cmdUpsert.Parameters.Add("@ts", SqliteType.Text);
 
                     string agora = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                     foreach (var p in produtos)
                     {
                         pCod.Value = p.CodigoBarras;
-                        pDesc.Value = p.Descricao;
+                        pDesc.Value = p.Descricao ?? string.Empty;
                         pPreco.Value = (double)p.Preco;
-                        pUni.Value = p.Unidade;
+                        pUni.Value = p.Unidade ?? string.Empty;
                         pTs.Value = agora;
-                        cmdInsert.ExecuteNonQuery();
+                        cmdUpsert.ExecuteNonQuery();
                     }
 
                     tx.Commit();
-                    _logger.Info("ProdutoSqliteRepository: tabela produtos sincronizada.");
+                    _logger.Info("ProdutoSqliteRepository: sincronização incremental concluída.");
                 }
                 catch
                 {
@@ -71,9 +70,15 @@ namespace BuscaPreco.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                _logger.Error("ProdutoSqliteRepository.SubstituirTodos: {Erro}", ex.Message);
+                _logger.Error("ProdutoSqliteRepository.SincronizarProdutos: {Erro}", ex.Message);
                 throw;
             }
+        }
+
+        [Obsolete("Use SincronizarProdutos para melhor desempenho e atomicidade.")]
+        public void SubstituirTodos(IEnumerable<ProdutoCacheEntry> produtos)
+        {
+            SincronizarProdutos(produtos);
         }
 
         public ProdutoCacheEntry BuscarPorCodigo(string codigoBarras)
@@ -97,9 +102,9 @@ namespace BuscaPreco.Infrastructure.Repositories
                 {
                     CodigoBarras = reader.GetString(0),
                     Descricao = reader.GetString(1),
-                    Preco = (decimal)reader.GetDouble(2),
+                    Preco = reader.GetDecimal(2),
                     Unidade = reader.GetString(3),
-                    UltimaAtualizacao = DateTime.Parse(reader.GetString(4))
+                    UltimaAtualizacao = reader.GetDateTime(4)
                 };
             }
             catch (Exception ex)
@@ -129,9 +134,9 @@ namespace BuscaPreco.Infrastructure.Repositories
                     {
                         CodigoBarras = reader.GetString(0),
                         Descricao = reader.GetString(1),
-                        Preco = (decimal)reader.GetDouble(2),
+                        Preco = reader.GetDecimal(2),
                         Unidade = reader.GetString(3),
-                        UltimaAtualizacao = DateTime.Parse(reader.GetString(4))
+                        UltimaAtualizacao = reader.GetDateTime(4)
                     });
                 }
             }

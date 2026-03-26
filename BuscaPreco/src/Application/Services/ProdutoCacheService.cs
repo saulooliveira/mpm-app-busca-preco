@@ -166,7 +166,7 @@ namespace BuscaPreco.Application.Services
                 UltimaAtualizacao = DateTime.Now
             });
 
-            _sqliteRepo.SubstituirTodos(entradas);
+            _sqliteRepo.SincronizarProdutos(entradas);
             _logger.Info("ProdutoCacheService: {Count} produtos sincronizados do DBF para SQLite.", produtosDbf.Count);
         }
 

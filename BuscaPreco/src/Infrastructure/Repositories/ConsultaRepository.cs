@@ -35,10 +35,15 @@ namespace BuscaPreco.Infrastructure.Repositories
                     INSERT INTO consultas (data_hora, codigo_barras, nome, preco, status, origem)
                     VALUES (@ts, @cod, @nome, @preco, @status, @origem);
                 ";
-                cmd.Parameters.AddWithValue("@ts", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                
+                // Tenta converter o preço para decimal para armazenamento correto
+                decimal precoDecimal = 0;
+                decimal.TryParse(preco, out precoDecimal);
+
+                cmd.Parameters.AddWithValue("@ts", DateTime.Now);
                 cmd.Parameters.AddWithValue("@cod", codigoBarras);
                 cmd.Parameters.AddWithValue("@nome", nome ?? string.Empty);
-                cmd.Parameters.AddWithValue("@preco", preco ?? string.Empty);
+                cmd.Parameters.AddWithValue("@preco", precoDecimal);
                 cmd.Parameters.AddWithValue("@status", encontrado ? "Encontrado" : "Não Cadastrado");
                 cmd.Parameters.AddWithValue("@origem", origem ?? string.Empty);
                 cmd.ExecuteNonQuery();
@@ -51,7 +56,6 @@ namespace BuscaPreco.Infrastructure.Repositories
 
         /// <summary>
         /// Retorna total, encontrados e não cadastrados no período [inicio, fim] inclusive.
-        /// fim é tratado como fim do dia (fim + 1 dia às 00:00:00).
         /// </summary>
         public (int total, int encontrados, int naoCadastrados) ResumoNoPeriodo(DateTime inicio, DateTime fim)
         {
@@ -68,8 +72,8 @@ namespace BuscaPreco.Infrastructure.Repositories
                     WHERE data_hora >= @inicio
                       AND data_hora <  @fim_exclusivo;
                 ";
-                cmd.Parameters.AddWithValue("@inicio", inicio.Date.ToString("yyyy-MM-dd HH:mm:ss"));
-                cmd.Parameters.AddWithValue("@fim_exclusivo", fim.Date.AddDays(1).ToString("yyyy-MM-dd HH:mm:ss"));
+                cmd.Parameters.AddWithValue("@inicio", inicio.Date);
+                cmd.Parameters.AddWithValue("@fim_exclusivo", fim.Date.AddDays(1));
                 using var r = cmd.ExecuteReader();
                 if (!r.Read())
                 {
@@ -111,8 +115,8 @@ namespace BuscaPreco.Infrastructure.Repositories
                     ORDER BY qtd DESC
                     LIMIT    @top;
                 ";
-                cmd.Parameters.AddWithValue("@inicio", inicio.Date.ToString("yyyy-MM-dd HH:mm:ss"));
-                cmd.Parameters.AddWithValue("@fim_exclusivo", fim.Date.AddDays(1).ToString("yyyy-MM-dd HH:mm:ss"));
+                cmd.Parameters.AddWithValue("@inicio", inicio.Date);
+                cmd.Parameters.AddWithValue("@fim_exclusivo", fim.Date.AddDays(1));
                 cmd.Parameters.AddWithValue("@top", top);
                 using var r = cmd.ExecuteReader();
                 while (r.Read())
@@ -130,7 +134,6 @@ namespace BuscaPreco.Infrastructure.Repositories
 
         /// <summary>
         /// Retorna array[24] com contagem de consultas por hora do dia (0=00h … 23=23h).
-        /// SQLite: strftime('%H', data_hora) retorna '00'…'23'.
         /// </summary>
         public int[] ConsultasPorHora(DateTime inicio, DateTime fim)
         {
@@ -147,8 +150,8 @@ namespace BuscaPreco.Infrastructure.Repositories
                       AND  data_hora <  @fim_exclusivo
                     GROUP  BY hora;
                 ";
-                cmd.Parameters.AddWithValue("@inicio", inicio.Date.ToString("yyyy-MM-dd HH:mm:ss"));
-                cmd.Parameters.AddWithValue("@fim_exclusivo", fim.Date.AddDays(1).ToString("yyyy-MM-dd HH:mm:ss"));
+                cmd.Parameters.AddWithValue("@inicio", inicio.Date);
+                cmd.Parameters.AddWithValue("@fim_exclusivo", fim.Date.AddDays(1));
                 using var r = cmd.ExecuteReader();
                 while (r.Read())
                 {
@@ -170,7 +173,6 @@ namespace BuscaPreco.Infrastructure.Repositories
         /// <summary>
         /// Retorna array[7] com contagem por dia da semana.
         /// SQLite strftime('%w'): 0=Domingo, 1=Segunda … 6=Sábado.
-        /// Labels no RelatorioForm devem seguir esta ordem: Dom, Seg, Ter, Qua, Qui, Sex, Sáb.
         /// </summary>
         public int[] ConsultasPorDiaSemana(DateTime inicio, DateTime fim)
         {
@@ -187,8 +189,8 @@ namespace BuscaPreco.Infrastructure.Repositories
                       AND  data_hora <  @fim_exclusivo
                     GROUP  BY dia;
                 ";
-                cmd.Parameters.AddWithValue("@inicio", inicio.Date.ToString("yyyy-MM-dd HH:mm:ss"));
-                cmd.Parameters.AddWithValue("@fim_exclusivo", fim.Date.AddDays(1).ToString("yyyy-MM-dd HH:mm:ss"));
+                cmd.Parameters.AddWithValue("@inicio", inicio.Date);
+                cmd.Parameters.AddWithValue("@fim_exclusivo", fim.Date.AddDays(1));
                 using var r = cmd.ExecuteReader();
                 while (r.Read())
                 {
