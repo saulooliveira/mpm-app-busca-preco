@@ -75,7 +75,7 @@ public class BuscaPrecosServiceTests
         IAlertService? alertService = null)
     {
         var logger = new AppLogger();
-        var dbContext = new ConsultaDbContext(Options.Create(new DbfConfig { DbfFilePath = "test.dbf" }), logger);
+        var dbContext = new ConsultaDbContext();
         var consultaRepository = new ConsultaRepository(dbContext, logger);
 
         return new BuscaPrecosService(

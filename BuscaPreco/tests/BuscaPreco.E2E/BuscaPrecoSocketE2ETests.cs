@@ -32,7 +32,7 @@ public class BuscaPrecoSocketE2ETests
         var dbfDatabase = new DbfDatabase(fixtureDbfPath, logger);
         var repository = new ProdutoRepository(dbfDatabase);
         
-        var dbContext = new ConsultaDbContext(Options.Create(new DbfConfig { DbfFilePath = fixtureDbfPath }), logger);
+        var dbContext = new ConsultaDbContext();
         var consultaRepository = new ConsultaRepository(dbContext, logger);
 
         var buscaPrecosService = new BuscaPrecosService(
