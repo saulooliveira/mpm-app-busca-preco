@@ -24,7 +24,6 @@ namespace BuscaPreco.Presentation.WindowsForms
         private readonly IProdutoCacheService _produtoCacheService;
         private ConfiguracaoForm _logForm;
         private RelatorioForm _relatorioForm;
-        private readonly Func<RelatorioForm> _relatorioFormFactory;
 
         public TrayApplicationContext(
             IBuscaPrecosService buscaPrecosService,
