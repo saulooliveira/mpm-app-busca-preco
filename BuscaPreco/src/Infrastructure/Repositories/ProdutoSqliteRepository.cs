@@ -53,7 +53,7 @@ namespace BuscaPreco.Infrastructure.Repositories
                     {
                         pCod.Value = p.CodigoBarras;
                         pDesc.Value = p.Descricao ?? string.Empty;
-                        pPreco.Value = (double)p.Preco;
+                        pPreco.Value = p.Preco;
                         pUni.Value = p.Unidade ?? string.Empty;
                         pTs.Value = agora;
                         cmdUpsert.ExecuteNonQuery();
@@ -103,7 +103,7 @@ namespace BuscaPreco.Infrastructure.Repositories
                     CodigoBarras = reader.GetString(0),
                     Descricao = reader.GetString(1),
                     Preco = reader.GetDecimal(2),
-                    Unidade = reader.GetString(3),
+                    Unidade = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
                     UltimaAtualizacao = reader.GetDateTime(4)
                 };
             }
@@ -135,7 +135,7 @@ namespace BuscaPreco.Infrastructure.Repositories
                         CodigoBarras = reader.GetString(0),
                         Descricao = reader.GetString(1),
                         Preco = reader.GetDecimal(2),
-                        Unidade = reader.GetString(3),
+                        Unidade = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
                         UltimaAtualizacao = reader.GetDateTime(4)
                     });
                 }
