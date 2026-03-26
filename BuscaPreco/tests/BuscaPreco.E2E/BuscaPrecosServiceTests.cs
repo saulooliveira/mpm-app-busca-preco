@@ -7,6 +7,8 @@ using BuscaPreco.Application.Services;
 using BuscaPreco.CrossCutting;
 using BuscaPreco.Domain.Entities;
 using BuscaPreco.Domain.Interfaces;
+using BuscaPreco.Infrastructure.Data;
+using BuscaPreco.Infrastructure.Repositories;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Core;
@@ -72,12 +74,17 @@ public class BuscaPrecosServiceTests
         int cacheTtlMinutes,
         IAlertService? alertService = null)
     {
+        var logger = new AppLogger();
+        var dbContext = new ConsultaDbContext();
+        var consultaRepository = new ConsultaRepository(dbContext, logger);
+
         return new BuscaPrecosService(
             new FakeProdutoCacheService(repository),
             alertService ?? new SpyAlertService(),
             new NullTerminalActivityMonitor(),
             Options.Create(new FeatureConfig { CacheTTLMinutes = cacheTtlMinutes }),
-            new AppLogger());
+            logger,
+            consultaRepository);
     }
 
     private sealed class FakeProdutoCacheService : IProdutoCacheService
