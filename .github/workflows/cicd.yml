@@ -168,9 +168,38 @@ jobs:
         shell: pwsh
         run: |
           New-Item -Force -ItemType Directory artifacts | Out-Null
+          
+          # Criar diretório temporário para o pacote limpo
+          $staging = "staging_win_x64"
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+          
+          # Copiar apenas os arquivos necessários do diretório de publicação
+          Copy-Item -Path "./publish/win-x64/*" -Destination $staging -Recurse -Force
+          
+          # Remover arquivos desnecessários do pacote final
+          $excludeList = @(
+            "*.dbf",
+            "*.sqlite",
+            "*.log",
+            "*.pdb",
+            "*.xml",
+            "appsettings.Development.json",
+            "config.yaml" # O usuário deve usar o config.example.yaml ou manter o dele
+          )
+          
+          foreach ($pattern in $excludeList) {
+            Get-ChildItem -Path $staging -Filter $pattern -Recurse | Remove-Item -Force -ErrorAction SilentlyContinue
+          }
+          
+          # Garantir que o config.example.yaml esteja presente
+          if (-not (Test-Path "$staging/config.example.yaml")) {
+            Copy-Item -Path "./BuscaPreco/config.example.yaml" -Destination $staging -Force -ErrorAction SilentlyContinue
+          }
+
+          # Compactar o pacote limpo
           Compress-Archive `
-            -Path ./publish/win-x64/* `
-            -DestinationPath ./artifacts/BuscaPreco-${{ github.ref_name }}-win-x64.zip `
+            -Path "$staging/*" `
+            -DestinationPath ./artifacts/BuscaPreco-\${{ github.ref_name }}-win-x64.zip `
             -Force
 
       - name: Create GitHub Release
