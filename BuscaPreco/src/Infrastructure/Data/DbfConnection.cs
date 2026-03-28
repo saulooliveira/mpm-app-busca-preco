@@ -62,143 +62,83 @@
     public class DbfDatabase
     {
         private readonly string _dbfFilePath;
-        private static Dictionary<string, (string des, decimal vlrVenda1)> _cache;
-        private DateTime _ultimaDataModificacao;
-        private DbfFileManager dbfFileManager;
-        private Logger logger;
+        private readonly DbfFileManager _dbfFileManager;
+        private readonly Logger _logger;
+
         public DbfDatabase(string dbfFilePath, Logger logger)
         {
-            this.logger = logger;
+            _logger = logger;
 
             if (!File.Exists(dbfFilePath))
             {
-                logger.Info($"Caminho não existe {dbfFilePath}");
-                System.Windows.Forms.MessageBox.Show(_dbfFilePath);
-                throw new Exception();
+                logger.Info($"Arquivo DBF não encontrado: {dbfFilePath}");
+                throw new DbfNotFoundException(dbfFilePath);
             }
 
-            // Crie uma instância do DbfFileManager passando o logger
-            dbfFileManager = new DbfFileManager(dbfFilePath, logger);
-
-            // Chame o método para copiar se modificado
-            _dbfFilePath = dbfFileManager.CopyIfModified(); 
-            _cache = new Dictionary<string, (string des, decimal vlrVenda1)>();
-            _ultimaDataModificacao = File.GetLastWriteTime(_dbfFilePath);
-            logger.Info($"ultimaDataModificacao {_ultimaDataModificacao}");
+            _dbfFileManager = new DbfFileManager(dbfFilePath, logger);
+            _dbfFilePath = _dbfFileManager.CopyIfModified();
         }
 
         public (string des, decimal vlrVenda1) BuscarPorCodigo(string cod)
         {
+            _dbfFileManager.CopyIfModified();
+
             try
             {
-                dbfFileManager.CopyIfModified();
+                var dbf = new Dbf();
+                dbf.Read(_dbfFilePath);
 
-
-            logger.Info($"BuscarPorCodigo {cod}");
-            // Verifica se o arquivo foi modificado
-            DateTime dataModificacaoAtual = File.GetLastWriteTime(_dbfFilePath);
-            if (dataModificacaoAtual != _ultimaDataModificacao)
-            {
-                logger.Info($"Limpa o cache se a data de modificação tiver mudado");
-                // Limpa o cache se a data de modificação tiver mudado
-                _cache.Clear();
-                _ultimaDataModificacao = dataModificacaoAtual;
-            }
-
-            logger.Info($"Verifica se o valor já está em cache");
-
-            // Verifica se o valor já está em cache
-            if (_cache.TryGetValue(cod, out var cachedResult))
-            {
-                logger.Info($" cachedResult {cachedResult}");
-
-                return cachedResult;  // Retorna o valor do cache
-            }
-
-
-
-      
-                logger.Info($" MakeCache");
-                this.MakeCache();
+                foreach (var record in dbf.Records)
+                {
+                    var codigo = record["COD"].ToString();
+                    if (string.Equals(codigo, cod, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var des = record["DES"].ToString();
+                        var vlrVenda1 = Convert.ToDecimal(record["VLVENDA1"]);
+                        return (des, vlrVenda1);
+                    }
+                }
             }
             catch (Exception ex)
             {
-                logger.Info($" Erro ao ler o arquivo DBF: {ex.Message}");
-                Console.WriteLine("Erro ao ler o arquivo DBF: " + ex.Message);
+                _logger.Info($"Erro ao ler o arquivo DBF: {ex.Message}");
             }
 
-            _cache.TryGetValue(cod, out var cachedResult2);
-
-            logger.Info($" cachedResult2: {cachedResult2}");
-
-            return cachedResult2;
-
+            return (string.Empty, 0m);
         }
 
         public List<Produto> ListarTudo()
         {
-            dbfFileManager.CopyIfModified();
-            List<Produto> produtos = new List<Produto>();
+            _dbfFileManager.CopyIfModified();
+            var produtos = new List<Produto>();
 
-            logger.Info($" Abrindo o arquivo DB");
-
-            // Abrindo o arquivo DB
             var dbf = new Dbf();
-            logger.Info($"Carregar o arquivo DBF {_dbfFilePath}");
-
-
-            // Carregar o arquivo DBF
             dbf.Read(_dbfFilePath);
 
-            // Percorre os registros para encontrar o COD correspondente
             foreach (var record in dbf.Records)
             {
-                if (record["COD"].ToString().Substring(0,2) == "20" && record["COD"].ToString().Length == 5)
+                var cod = record["COD"]?.ToString() ?? string.Empty;
+                var des = record["DES"]?.ToString() ?? string.Empty;
+
+                // Ignorar registros sem código ou descrição
+                if (string.IsNullOrWhiteSpace(cod) || string.IsNullOrWhiteSpace(des))
+                    continue;
+
+                decimal preco = 0m;
+                try { preco = Convert.ToDecimal(record["VLVENDA1"]); } catch { }
+
+                var p = new Produto
                 {
-                    Produto p = new Produto();
-                    p.CodigoItem = record["COD"].ToString().Substring(2);
-                    p.Descricao1 = record["DES"].ToString();
-                    p.Preco = Convert.ToDecimal(record["VLVENDA1"]);
-                    p.Unidade = record["UNI"].ToString();
+                    CodigoItem = cod,
+                    Descricao1 = des,
+                    Preco = preco,
+                    Unidade = record["UNI"]?.ToString() ?? string.Empty
+                };
 
-                    produtos.Add(p); 
-                }
+                produtos.Add(p);
             }
+
             return produtos;
-        }
-
-        private void MakeCache()
-        {
-            string des = null;
-            decimal vlrVenda1 = 0;
-            logger.Info($" Abrindo o arquivo DB");
-
-            // Abrindo o arquivo DB
-            var dbf = new Dbf();
-            logger.Info($"Carregar o arquivo DBF {_dbfFilePath}");
-
-             
-            // Carregar o arquivo DBF
-            dbf.Read(_dbfFilePath);
-
-            // Percorre os registros para encontrar o COD correspondente
-            foreach (var record in dbf.Records)
-            {
-                des = record["DES"].ToString();
-                vlrVenda1 = Convert.ToDecimal(record["VLVENDA1"]);
-
-                // Armazena o resultado no cache
-                _cache[record["COD"].ToString()] = (des, vlrVenda1);
-            }
-
-            logger.Info($"Carregar o arquivo DBF finalizado  COunt {_cache.Count}");
-        }
-
-        // Método opcional para limpar o cache manualmente
-        public void LimparCache()
-        {
-            logger.Info($"Limpar Cache");
-            _cache.Clear();
         }
     }
 

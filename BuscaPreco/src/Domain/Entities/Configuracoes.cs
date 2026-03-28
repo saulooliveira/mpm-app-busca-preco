@@ -4,7 +4,7 @@ using System.Text;
 
 namespace BuscaPreco.Domain.Entities
 {
-    class Configuracoes
+    public class Configuracoes
     {
         public string IPServer;
         public string IPCliente;

@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.CrossCutting;
 using BuscaPreco.Infrastructure.Scrapers;
+using BuscaPreco.Infrastructure.Services;
 
 namespace BuscaPreco.Presentation.WindowsForms
 {
@@ -17,20 +18,30 @@ namespace BuscaPreco.Presentation.WindowsForms
         private readonly Logger _logger;
         private readonly Servidor _servidor;
         private readonly Func<ConfiguracaoForm> _logFormFactory;
+        private readonly Func<RelatorioForm> _relatorioFormFactory;
         private readonly ArrayList _terminaisConectados;
+        private readonly AudioService _audioService;
+        private readonly IProdutoCacheService _produtoCacheService;
         private ConfiguracaoForm _logForm;
+        private RelatorioForm _relatorioForm;
 
         public TrayApplicationContext(
             IBuscaPrecosService buscaPrecosService,
             Logger logger,
             Servidor servidor,
-            Func<ConfiguracaoForm> logFormFactory)
+            Func<ConfiguracaoForm> logFormFactory,
+            Func<RelatorioForm> relatorioFormFactory,
+            AudioService audioService,
+            IProdutoCacheService produtoCacheService)
         {
             _buscaPrecosService = buscaPrecosService;
             _logger = logger;
             _servidor = servidor;
             _logFormFactory = logFormFactory;
             _terminaisConectados = new ArrayList();
+            _audioService = audioService;
+            _produtoCacheService = produtoCacheService;
+            _relatorioFormFactory = relatorioFormFactory;
 
             InitializeServer();
 
@@ -94,8 +105,26 @@ namespace BuscaPreco.Presentation.WindowsForms
                     return;
                 }
 
-                terminal.SendProcPrice(descricao, preco.ToString("0.00", CultureInfo.InvariantCulture));
-                _logger.Info("Resposta enviada ao terminal. CodigoBarras={CodigoBarras} Descricao={Descricao} Preco={Preco}", codigo, descricao, preco);
+                var precoFormatado = preco.ToString("0.00", CultureInfo.InvariantCulture);
+                var wavBytes = _audioService.IsEnabled ? _audioService.GetWavBytes() : null;
+
+                if (wavBytes != null && terminal.IsG2SComAudio)
+                {
+                    terminal.SendPlayAudioWithMessage(
+                        wavBytes,
+                        _audioService.DuracaoSegundos,
+                        _audioService.Volume,
+                        descricao,
+                        precoFormatado);
+                    _logger.Info("Resposta com áudio enviada. CodigoBarras={CodigoBarras} Descricao={Descricao} Preco={Preco}",
+                        codigo, descricao, preco);
+                }
+                else
+                {
+                    terminal.SendProcPrice(descricao, precoFormatado);
+                    _logger.Info("Resposta enviada ao terminal. CodigoBarras={CodigoBarras} Descricao={Descricao} Preco={Preco}",
+                        codigo, descricao, preco);
+                }
             }
             catch (Exception ex)
             {
@@ -130,12 +159,16 @@ namespace BuscaPreco.Presentation.WindowsForms
             var configItem = new ToolStripMenuItem("Configurações");
             configItem.Click += (_, __) => ShowLogForm();
 
+            var relatorioItem = new ToolStripMenuItem("Relatório de Consultas");
+            relatorioItem.Click += (_, __) => ShowRelatorioForm();
+
             var exitItem = new ToolStripMenuItem("Sair");
             exitItem.Click += (_, __) => ExitApplication();
 
             contextMenu.Items.Add(statusItem);
             contextMenu.Items.Add(forceSearchItem);
             contextMenu.Items.Add(configItem);
+            contextMenu.Items.Add(relatorioItem);
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(exitItem);
 
@@ -146,20 +179,20 @@ namespace BuscaPreco.Presentation.WindowsForms
         {
             try
             {
-                var produtos = _buscaPrecosService.ListarTudo();
-                var quantidade = produtos?.Count ?? 0;
+                _produtoCacheService.SincronizarAgora();
 
-                _logger.Info($"Forçar Busca de Preços executado. Itens encontrados: {quantidade}.");
+                var quantidade = _buscaPrecosService.ListarTudo().Count;
+                _logger.Info("Forçar Busca de Preços executado. Itens no cache: {Quantidade}.", quantidade);
 
                 _notifyIcon.ShowBalloonTip(
                     3000,
                     "Busca de Preços",
-                    $"Sincronização concluída. Itens carregados: {quantidade}.",
+                    $"Sincronização concluída. Itens no cache: {quantidade}.",
                     ToolTipIcon.Info);
             }
             catch (Exception ex)
             {
-                _logger.Error($"Erro ao forçar busca de preços: {ex.Message}");
+                _logger.Error("Erro ao forçar busca de preços: {Message}", ex.Message);
                 _notifyIcon.ShowBalloonTip(
                     3000,
                     "Busca de Preços",
@@ -203,6 +236,25 @@ namespace BuscaPreco.Presentation.WindowsForms
             _logForm.Activate();
         }
 
+
+        private void ShowRelatorioForm()
+        {
+            if (_relatorioForm == null || _relatorioForm.IsDisposed)
+            {
+                _relatorioForm = _relatorioFormFactory();
+                _relatorioForm.FormClosed += (_, __) => _relatorioForm = null;
+            }
+
+            if (!_relatorioForm.Visible)
+            {
+                _relatorioForm.Show();
+            }
+
+            _relatorioForm.WindowState = FormWindowState.Normal;
+            _relatorioForm.BringToFront();
+            _relatorioForm.Activate();
+        }
+
         private Icon LoadTrayIcon()
         {
             var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "buscapreco.ico");
@@ -228,6 +280,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             {
                 _notifyIcon?.Dispose();
                 _logForm?.Dispose();
+                _relatorioForm?.Dispose();
             }
 
             base.Dispose(disposing);
