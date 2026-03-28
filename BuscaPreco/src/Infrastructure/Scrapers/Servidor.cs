@@ -174,6 +174,11 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 try
                 {
                     server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    
+                    // Habilita a reutilização do endereço para evitar o erro "normalmente é permitida apenas uma utilização de cada endereço"
+                    // Isso é crucial quando o servidor é reiniciado rapidamente e a porta ainda está no estado TIME_WAIT do SO.
+                    server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    
                     server.Bind(ipServer);
                     server.Listen(5);
                     logger.Info("Servidor do terminal iniciado na porta {Porta}", terminalConfig.Porta);
@@ -196,10 +201,25 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 }
                 catch (Exception ex)
                 {
-                    logger.Warning("Conexão com terminal indisponível. Tentando reconectar em {Delay}ms. Erro: {Erro}", terminalConfig.ReconnectDelayMs, ex.Message);
+                    // Se o erro for especificamente de endereço em uso, logamos com um nível mais apropriado e limpamos o socket
+                    if (ex is SocketException se && se.SocketErrorCode == SocketError.AddressAlreadyInUse)
+                    {
+                        logger.Warning("A porta {Porta} já está em uso ou ainda não foi liberada pelo sistema operacional. Tentando novamente em {Delay}ms...", terminalConfig.Porta, terminalConfig.ReconnectDelayMs);
+                    }
+                    else
+                    {
+                        logger.Warning("Conexão com terminal indisponível. Tentando reconectar em {Delay}ms. Erro: {Erro}", terminalConfig.ReconnectDelayMs, ex.Message);
+                    }
+
                     try
                     {
-                        server?.Close();
+                        if (server != null)
+                        {
+                            if (server.Connected) server.Shutdown(SocketShutdown.Both);
+                            server.Close();
+                            server.Dispose();
+                            server = null;
+                        }
                     }
                     catch
                     {
