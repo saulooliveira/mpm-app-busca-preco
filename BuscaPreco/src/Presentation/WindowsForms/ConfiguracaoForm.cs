@@ -64,7 +64,33 @@ namespace BuscaPreco.Presentation.WindowsForms
         {
             Habilita_Configuracoes(true);
             CarregarFixadosAtuais();
+            AtualizarListaTerminais();
+            AtualizarContagemProdutos();
             // Products are loaded lazily when the Promoções tab is first selected.
+        }
+
+        private void AtualizarListaTerminais()
+        {
+            lista.Items.Clear();
+            var terminais = _servidor.GetTerminaisSnapshot();
+            foreach (var t in terminais)
+            {
+                lista.Items.Add(t);
+            }
+        }
+
+        private void AtualizarContagemProdutos()
+        {
+            try
+            {
+                var total = buscaPrecosService.ListarTudo().Count;
+                // Usamos o textBox1 (Histórico) para exibir informações de status se não houver um label dedicado
+                textBox1.AppendText($"{DateTime.Now:HH:mm:ss} - Total de produtos no cache: {total}{Environment.NewLine}");
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Erro ao contar produtos: {Erro}", ex.Message);
+            }
         }
 
         private void bTexto_Click(object sender, EventArgs e)
@@ -137,10 +163,24 @@ namespace BuscaPreco.Presentation.WindowsForms
             bool isG2S = terminal.IsG2SComAudio;
             string audioInfo = isG2S ? " — G2 S (áudio suportado)" : " — G2 (sem áudio)";
             string macInfo = string.IsNullOrEmpty(terminal.MacAddress) ? "" : "  |  MAC: " + terminal.MacAddress;
-            lblFirmwareInfo.Text = $"Modelo: {terminal.Tipo}  |  Firmware: {terminal.Versao}{audioInfo}{macInfo}";
+            
+            // Adicionando informações de tempo de conexão e falhas
+            string tempoConectado = FormatarTempo(terminal.TempoConectado);
+            string infoConexao = $"  |  Conectado há: {tempoConectado}  |  Falhas: {terminal.FalhasConexao}";
+
+            lblFirmwareInfo.Text = $"Modelo: {terminal.Tipo}  |  Firmware: {terminal.Versao}{audioInfo}{macInfo}{infoConexao}";
             lblFirmwareInfo.ForeColor = isG2S
                 ? System.Drawing.Color.DarkGreen
                 : System.Drawing.Color.DarkBlue;
+        }
+
+        private string FormatarTempo(TimeSpan ts)
+        {
+            if (ts.TotalDays >= 1)
+                return $"{(int)ts.TotalDays}d {ts.Hours}h {ts.Minutes}m";
+            if (ts.TotalHours >= 1)
+                return $"{ts.Hours}h {ts.Minutes}m {ts.Seconds}s";
+            return $"{ts.Minutes}m {ts.Seconds}s";
         }
 
         private void button1_Click(object sender, EventArgs e)

@@ -25,12 +25,17 @@ namespace BuscaPreco.Infrastructure.Scrapers
         private string tipo; // tipo do terminal
         private string versao; // versão do terminal
         private string macAddress; // MAC Address do terminal (obtido via #macaddr?)
+        private readonly DateTime dataConexao; // Data/hora em que o terminal conectou
+        private int falhasConexao; // Contador de falhas de timeout/comunicação
 
         public Configuracoes config;// gerencia as configurações dos terminais
 
         public string Tipo => tipo ?? string.Empty;
         public string Versao => versao ?? string.Empty;
         public string MacAddress => macAddress ?? string.Empty;
+        public DateTime DataConexao => dataConexao;
+        public int FalhasConexao => falhasConexao;
+        public TimeSpan TempoConectado => DateTime.Now - dataConexao;
 
         /// <summary>
         /// Retorna true se o terminal for um Busca Preço G2 S com suporte a áudio
@@ -50,6 +55,8 @@ namespace BuscaPreco.Infrastructure.Scrapers
          */
         public Terminal(Socket socket){
             sock = socket; // Atribui o socket para o atributo sock
+            dataConexao = DateTime.Now;
+            falhasConexao = 0;
             config = new Configuracoes(); // inicia o objeto config
             meuProcesso = new Thread(ProcessaTerminal); // configura a thread para o processo do terminal
             meuProcesso.Start();// inicia a thread
@@ -617,6 +624,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
                     
                     if (controleConectado == 1)// se houve timeout
                     {
+                        falhasConexao++; // Incrementa contador global de falhas para monitoramento
                         if (contLive < 2){// se acontagem de timeouts seguidos for menor que 2
                             EnviaParaTerminal("#live?");// envia "#live?" para o terminal
                             contLive++;// incrementa a contagem
