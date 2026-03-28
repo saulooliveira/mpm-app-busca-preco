@@ -545,23 +545,36 @@ namespace BuscaPreco.Infrastructure.Scrapers
 
                 paraServidor = "init"; //inicia a string
                 EnviaParaTerminal("#ok");// envia a string "#OK" para o terminal
-                RecebeDoTerminal(ref paraServidor);// recebe a reposta do terminal
+                
+                // Tenta receber a resposta do terminal com retentativas
+                int retryCount = 0;
+                int receiveResult = -1;
+                while (retryCount < 3)
+                {
+                    receiveResult = RecebeDoTerminal(ref paraServidor);
+                    if (receiveResult == 0 && !string.IsNullOrEmpty(paraServidor)) break;
+                    retryCount++;
+                    Thread.Sleep(200);
+                }
+
                 System.Diagnostics.Debug.WriteLine($"Terminal init response: {paraServidor}");
 
-                IP = (IPEndPoint)sock.RemoteEndPoint;// configura o IP da conexão
+                try { IP = (IPEndPoint)sock.RemoteEndPoint; } catch { IP = null; }
 
                 // Valida e extrai tipo e versão da resposta ao #ok
                 // Esperado: #tc406|3.3.1 S  ou  #tc502|4.0
                 int separadorIdx = paraServidor == null ? -1 : paraServidor.IndexOf('|');
-                if (string.IsNullOrEmpty(paraServidor) || separadorIdx < 2)
+                if (string.IsNullOrEmpty(paraServidor) || separadorIdx < 1)
                 {
-                    System.Diagnostics.Debug.WriteLine($"ProcessaTerminal: resposta inválida ao #ok: '{paraServidor}'. Encerrando conexão.");
-                    sock.Close();
-                    Desconectar?.Invoke(this);
-                    return;
+                    System.Diagnostics.Debug.WriteLine($"ProcessaTerminal: resposta não padrão ao #ok: '{paraServidor}'. Usando valores genéricos.");
+                    tipo = "desconhecido";
+                    versao = "0.0";
                 }
-                tipo = paraServidor.Substring(1, separadorIdx - 1);
-                versao = paraServidor.Substring(separadorIdx + 1).TrimEnd('\0', ' ');
+                else
+                {
+                    tipo = paraServidor.Substring(1, separadorIdx - 1);
+                    versao = paraServidor.Substring(separadorIdx + 1).TrimEnd('\0', ' ');
+                }
                 System.Diagnostics.Debug.WriteLine($"Terminal conectado — tipo: {tipo}, versão: {versao}, IP: {IP}");
 
                 // Manual p.6: #alwayslive mantém o terminal conectado sem necessidade de #live? periódico
