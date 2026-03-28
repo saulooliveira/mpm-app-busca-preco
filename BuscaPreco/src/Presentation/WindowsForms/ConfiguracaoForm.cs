@@ -291,25 +291,63 @@ namespace BuscaPreco.Presentation.WindowsForms
 
         private void SaveConfigToFile(Configuracoes conf, string filePath)
         {
-            string Escape(string s) => s?.Replace("\\", "\\\\").Replace("\"", "\"\"") ?? string.Empty;
+            // Para preservar a estrutura do YAML (seções como Terminal:, DbfConfig:),
+            // lemos o arquivo original e apenas atualizamos os valores das chaves conhecidas.
+            // Se o arquivo não existir, criamos um novo com a estrutura básica.
+            
+            var lines = File.Exists(filePath) 
+                ? File.ReadAllLines(filePath).ToList() 
+                : new List<string>();
 
-            var lines = new System.Collections.Generic.List<string>();
-            lines.Add($"IPCliente: \"{Escape(conf.IPCliente)}\"");
-            lines.Add($"IPServer: \"{Escape(conf.IPServer)}\"");
-            lines.Add($"Mascara: \"{Escape(conf.Mascara)}\"");
-            lines.Add($"TLinha1: \"{Escape(conf.TLinha1)}\"");
-            lines.Add($"TLinha2: \"{Escape(conf.TLinha2)}\"");
-            lines.Add($"TLinha3: \"{Escape(conf.TLinha3)}\"");
-            lines.Add($"TLinha4: \"{Escape(conf.TLinha4)}\"");
-            lines.Add($"Tempo: {((int)conf.Tempo)}");
-            lines.Add($"Gateway: \"{Escape(conf.Gateway)}\"");
-            lines.Add($"ServidorNomes: \"{Escape(conf.ServidorNomes)}\"");
-            lines.Add($"Nome: \"{Escape(conf.Nome)}\"");
-            lines.Add($"EndUpdate: \"{Escape(conf.EndUpdate)}\"");
-            lines.Add($"User: \"{Escape(conf.User)}\"");
-            lines.Add($"Pass: \"{Escape(conf.Pass)}\"");
-            lines.Add($"IPDinamico: {conf.IPDinamico}");
-            lines.Add($"BuscaServidor: {conf.BuscaServidor}");
+            void UpdateOrAdd(string key, string value)
+            {
+                string formattedValue = value?.Replace("\\", "\\\\").Replace("\"", "\"\"") ?? string.Empty;
+                string newLine = $"{key}: \"{formattedValue}\"";
+                
+                int index = lines.FindIndex(l => l.TrimStart().StartsWith(key + ":"));
+                if (index >= 0)
+                {
+                    // Preserva a indentação original
+                    string indentation = lines[index].Substring(0, lines[index].IndexOf(key));
+                    lines[index] = $"{indentation}{key}: \"{formattedValue}\"";
+                }
+                else
+                {
+                    lines.Add(newLine);
+                }
+            }
+
+            void UpdateOrAddInt(string key, int value)
+            {
+                string newLine = $"{key}: {value}";
+                int index = lines.FindIndex(l => l.TrimStart().StartsWith(key + ":"));
+                if (index >= 0)
+                {
+                    string indentation = lines[index].Substring(0, lines[index].IndexOf(key));
+                    lines[index] = $"{indentation}{key}: {value}";
+                }
+                else
+                {
+                    lines.Add(newLine);
+                }
+            }
+
+            UpdateOrAdd("IPCliente", conf.IPCliente);
+            UpdateOrAdd("IPServer", conf.IPServer);
+            UpdateOrAdd("Mascara", conf.Mascara);
+            UpdateOrAdd("TLinha1", conf.TLinha1);
+            UpdateOrAdd("TLinha2", conf.TLinha2);
+            UpdateOrAdd("TLinha3", conf.TLinha3);
+            UpdateOrAdd("TLinha4", conf.TLinha4);
+            UpdateOrAddInt("Tempo", (int)conf.Tempo);
+            UpdateOrAdd("Gateway", conf.Gateway);
+            UpdateOrAdd("ServidorNomes", conf.ServidorNomes);
+            UpdateOrAdd("Nome", conf.Nome);
+            UpdateOrAdd("EndUpdate", conf.EndUpdate);
+            UpdateOrAdd("User", conf.User);
+            UpdateOrAdd("Pass", conf.Pass);
+            UpdateOrAddInt("IPDinamico", conf.IPDinamico);
+            UpdateOrAddInt("BuscaServidor", conf.BuscaServidor);
 
             File.WriteAllLines(filePath, lines);
         }

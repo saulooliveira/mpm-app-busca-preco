@@ -545,7 +545,19 @@ namespace BuscaPreco.Infrastructure.Scrapers
 
                 paraServidor = "init"; //inicia a string
                 EnviaParaTerminal("#ok");// envia a string "#OK" para o terminal
-                RecebeDoTerminal(ref paraServidor);// recebe a reposta do terminal
+                
+                // Aumenta a tolerância para a resposta inicial do terminal
+                int retryCount = 0;
+                while (string.IsNullOrEmpty(paraServidor) && retryCount < 3)
+                {
+                    RecebeDoTerminal(ref paraServidor);
+                    if (string.IsNullOrEmpty(paraServidor))
+                    {
+                        retryCount++;
+                        Thread.Sleep(200);
+                    }
+                }
+
                 System.Diagnostics.Debug.WriteLine($"Terminal init response: {paraServidor}");
 
                 IP = (IPEndPoint)sock.RemoteEndPoint;// configura o IP da conexão
@@ -555,13 +567,17 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 int separadorIdx = paraServidor == null ? -1 : paraServidor.IndexOf('|');
                 if (string.IsNullOrEmpty(paraServidor) || separadorIdx < 2)
                 {
-                    System.Diagnostics.Debug.WriteLine($"ProcessaTerminal: resposta inválida ao #ok: '{paraServidor}'. Encerrando conexão.");
-                    sock.Close();
-                    Desconectar?.Invoke(this);
-                    return;
+                    // Se a resposta não for no formato esperado, tentamos prosseguir com valores genéricos
+                    // em vez de derrubar a conexão imediatamente, para maior compatibilidade.
+                    System.Diagnostics.Debug.WriteLine($"ProcessaTerminal: resposta não padrão ao #ok: '{paraServidor}'. Usando valores genéricos.");
+                    tipo = "genérico";
+                    versao = "0.0.0";
                 }
-                tipo = paraServidor.Substring(1, separadorIdx - 1);
-                versao = paraServidor.Substring(separadorIdx + 1).TrimEnd('\0', ' ');
+                else
+                {
+                    tipo = paraServidor.Substring(1, separadorIdx - 1);
+                    versao = paraServidor.Substring(separadorIdx + 1).TrimEnd('\0', ' ');
+                }
                 System.Diagnostics.Debug.WriteLine($"Terminal conectado — tipo: {tipo}, versão: {versao}, IP: {IP}");
 
                 // Manual p.6: #alwayslive mantém o terminal conectado sem necessidade de #live? periódico
