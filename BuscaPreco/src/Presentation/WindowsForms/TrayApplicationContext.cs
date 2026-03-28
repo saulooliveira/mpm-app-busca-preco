@@ -74,7 +74,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             _logger.Info("Servidor Gertec inicializado no contexto da bandeja.");
         }
 
-        private void OnChangeList(ArrayList novaLista)
+        private void OnChangeList(List<Terminal> novaLista)
         {
             _terminaisConectados.Clear();
             _terminaisConectados.AddRange(novaLista);
