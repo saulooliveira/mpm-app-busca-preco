@@ -97,6 +97,13 @@ namespace BuscaPreco.Domain.Entities
          */
         public void ProcessaConfig(string str)
         {
+            str = (str ?? string.Empty).Trim('\0', '\r', '\n', ' ');
+            if (string.IsNullOrEmpty(str) || !str.StartsWith("#config02"))
+            {
+                System.Diagnostics.Debug.WriteLine($"ProcessaConfig: string inválida recebida: '{str}'");
+                return;
+            }
+
             int tamanho;
             str = str.Substring(9);
 
@@ -147,6 +154,13 @@ namespace BuscaPreco.Domain.Entities
          */
         public void ProcessaParam(string str)
         {
+            str = (str ?? string.Empty).Trim('\0', '\r', '\n', ' ');
+            if (string.IsNullOrEmpty(str) || !str.StartsWith("#paramconfig"))
+            {
+                System.Diagnostics.Debug.WriteLine($"ProcessaParam: string inválida recebida: '{str}'");
+                return;
+            }
+
             str = str.Substring(12);
 
             char[] strchar = str.ToCharArray();
@@ -162,6 +176,13 @@ namespace BuscaPreco.Domain.Entities
          */
         public void ProcessaUpdate(string str)
         {
+            str = (str ?? string.Empty).Trim('\0', '\r', '\n', ' ');
+            if (string.IsNullOrEmpty(str) || !str.StartsWith("#updconfig"))
+            {
+                System.Diagnostics.Debug.WriteLine($"ProcessaUpdate: string inválida recebida: '{str}'");
+                return;
+            }
+
             int tamanho;
             str = str.Substring(10);
 
