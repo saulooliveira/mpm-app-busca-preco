@@ -262,6 +262,13 @@ namespace BuscaPreco.Infrastructure.Scrapers
                     return;
                 }
 
+                resposta = resposta.Trim('\0', '\r', '\n', ' ');
+                if (!resposta.StartsWith("#macaddr"))
+                {
+                    System.Diagnostics.Debug.WriteLine($"ConsultarMacAddress: prefixo inválido: '{resposta}'");
+                    return;
+                }
+
                 // Formato: #macaddr<1byte interface><1byte tamLen+48><MAC string>
                 // Ex:      #macaddr0A00:1D:5B:00:65:A8
                 // Prefixo "#macaddr" = 8 chars, depois: 1 char interface, 1 char tamLen, então MAC
@@ -546,34 +553,40 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 paraServidor = "init"; //inicia a string
                 EnviaParaTerminal("#ok");// envia a string "#OK" para o terminal
                 RecebeDoTerminal(ref paraServidor);// recebe a reposta do terminal
+                paraServidor = (paraServidor ?? string.Empty).Trim('\0', '\r', '\n', ' ');
                 System.Diagnostics.Debug.WriteLine($"Terminal init response: {paraServidor}");
 
                 IP = (IPEndPoint)sock.RemoteEndPoint;// configura o IP da conexão
 
                 // Valida e extrai tipo e versão da resposta ao #ok
                 // Esperado: #tc406|3.3.1 S  ou  #tc502|4.0
-                int separadorIdx = paraServidor == null ? -1 : paraServidor.IndexOf('|');
+                int separadorIdx = paraServidor.IndexOf('|');
                 if (string.IsNullOrEmpty(paraServidor) || separadorIdx < 2)
                 {
-                    System.Diagnostics.Debug.WriteLine($"ProcessaTerminal: resposta inválida ao #ok: '{paraServidor}'. Encerrando conexão.");
+                    System.Diagnostics.Debug.WriteLine($"ProcessaTerminal: resposta inválida ao #ok após sanitização: '{paraServidor}'. Encerrando.");
                     sock.Close();
                     Desconectar?.Invoke(this);
                     return;
                 }
                 tipo = paraServidor.Substring(1, separadorIdx - 1);
                 versao = paraServidor.Substring(separadorIdx + 1).TrimEnd('\0', ' ');
+                System.Diagnostics.Debug.WriteLine($"Terminal identificado — tipo: {tipo}, versão: {versao}");
                 System.Diagnostics.Debug.WriteLine($"Terminal conectado — tipo: {tipo}, versão: {versao}, IP: {IP}");
 
                 // Manual p.6: #alwayslive mantém o terminal conectado sem necessidade de #live? periódico
                 EnviaParaTerminal("#alwayslive");
                 System.Diagnostics.Debug.WriteLine("ProcessaTerminal: #alwayslive enviado.");
-                // Nota: não aguardamos a resposta #alwayslive_ok — o terminal pode demorar para responder
-                // e o próximo RecebeDoTerminal no handshake de config já drenará o buffer.
+                Thread.Sleep(300);
+                string alwaysLiveResp = null;
+                RecebeDoTerminal(ref alwaysLiveResp);
+                alwaysLiveResp = (alwaysLiveResp ?? string.Empty).Trim('\0', '\r', '\n', ' ');
+                System.Diagnostics.Debug.WriteLine($"ProcessaTerminal: #alwayslive_ok recebido: {alwaysLiveResp}");
 
                 // pede a configuração do terminal
                 EnviaParaTerminal("#config02?");
                 Thread.Sleep(500);
                 RecebeDoTerminal(ref paraServidor);
+                paraServidor = (paraServidor ?? string.Empty).Trim('\0', '\r', '\n', ' ');
                 System.Diagnostics.Debug.WriteLine($"Config response: {paraServidor}");
                 config.ProcessaConfig(paraServidor);
 
@@ -581,6 +594,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 EnviaParaTerminal("#paramconfig?");
                 Thread.Sleep(500);
                 RecebeDoTerminal(ref paraServidor);
+                paraServidor = (paraServidor ?? string.Empty).Trim('\0', '\r', '\n', ' ');
                 System.Diagnostics.Debug.WriteLine($"Param response: {paraServidor}");
                 config.ProcessaParam(paraServidor);
 
@@ -588,6 +602,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 EnviaParaTerminal("#updconfig?");
                 Thread.Sleep(500);
                 RecebeDoTerminal(ref paraServidor);
+                paraServidor = (paraServidor ?? string.Empty).Trim('\0', '\r', '\n', ' ');
                 System.Diagnostics.Debug.WriteLine($"Update response: {paraServidor}");
                 config.ProcessaUpdate(paraServidor);
 
