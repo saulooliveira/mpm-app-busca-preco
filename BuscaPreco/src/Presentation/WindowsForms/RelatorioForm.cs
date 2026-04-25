@@ -5,6 +5,7 @@ using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
 using BuscaPreco.Infrastructure.Repositories;
+using BuscaPreco.Infrastructure.Services;
 
 namespace BuscaPreco.Presentation.WindowsForms
 {
@@ -28,6 +29,8 @@ namespace BuscaPreco.Presentation.WindowsForms
 
         private void ConfigurarGrid()
         {
+            dgvProdutos.SelectionChanged += (_, __) =>
+                btnImprimirEtiqueta.Enabled = dgvProdutos.SelectedRows.Count > 0;
             dgvProdutos.AutoGenerateColumns = false;
             dgvProdutos.Columns.Clear();
             dgvProdutos.Columns.Add(new DataGridViewTextBoxColumn
@@ -192,6 +195,36 @@ namespace BuscaPreco.Presentation.WindowsForms
         private void btnAtualizar_Click(object sender, EventArgs e)
         {
             CarregarDados();
+        }
+
+        private void btnImprimirEtiqueta_Click(object sender, EventArgs e)
+        {
+            if (dgvProdutos.SelectedRows.Count == 0) return;
+
+            var row = dgvProdutos.SelectedRows[0];
+            var codigo = row.Cells["colCod"].Value?.ToString() ?? string.Empty;
+            var nome = row.Cells["colNome"].Value?.ToString() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(codigo)) return;
+
+            var preco = _consultaRepository.BuscarPrecoMaisRecente(codigo);
+            if (string.IsNullOrWhiteSpace(preco)) preco = "0,00";
+
+            using var dlg = new PrintDialog { UseEXDialog = true };
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            try
+            {
+                ArgoxLabelPrinter.Imprimir(dlg.PrinterSettings.PrinterName, nome, preco, codigo);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Erro ao imprimir etiqueta:\n" + ex.Message,
+                    "BuscaPreço — Impressão",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
     }
 }
