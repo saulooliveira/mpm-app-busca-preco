@@ -219,7 +219,7 @@ namespace BuscaPreco.Infrastructure.Scrapers
             {
                 Thread.Sleep(50);
 
-                string paraServidor;
+                string paraServidor = null;
                 int controleConectado;
                 int contLive = 0;
 
