@@ -95,6 +95,66 @@ Tests live in `BuscaPreco/tests/BuscaPreco.E2E/` (xUnit). Test doubles used:
 
 The E2E tests include real TCP socket tests (`BuscaPrecoSocketE2ETests`) and cache invalidation tests (`DbfDatabaseCacheInvalidationTests`). Many assertions in existing tests are commented out pending completion — check `PROMPT_GERACAO_TESTES_CT_PRIORITARIOS.md` for the 10 critical scenarios to implement.
 
+## Gertec BuscaPreço TCP Protocol
+
+The reference manual is `Manual_Desenvolvedor_JavaC-V1.3.0_R00.22` (Gertec). Protocol is plain ASCII over TCP, no framing delimiters.
+
+### Handshake sequence (on every new connection)
+
+| Step | Direction | Data |
+|---|---|---|
+| 1 | Server → Terminal | `#ok` |
+| 2 | Terminal → Server | `#<tipo>\|<versao>` (e.g. `#tc406\|3.3.1 S`) |
+| 3 | Server → Terminal | `#alwayslive` (manual p.6) |
+| 4 | Terminal → Server | `#alwayslive_ok` |
+| 5 | Server → Terminal | `#config02?` |
+| 6 | Terminal → Server | `#config02<blob>` |
+| 7 | Server → Terminal | `#paramconfig?` |
+| 8 | Terminal → Server | `#paramconfig<2 bytes>` |
+| 9 | Server → Terminal | `#updconfig?` |
+| 10 | Terminal → Server | `#updconfig<blob>` |
+| 11 | Server → Terminal | `#macaddr?` (manual p.34) |
+| 12 | Terminal → Server | `#macaddr<1b-iface><1b-len+48><MAC>` |
+| — | Main loop | Terminal sends barcode; server responds with price or `#nfound` |
+
+### Main loop commands
+
+| Message | Direction | Meaning |
+|---|---|---|
+| `#<barcode>` | Terminal → Server | Barcode scanned — trimmed and looked up |
+| `#<desc>\|<price>` | Server → Terminal | Product found; desc ≤ 20 chars, `#` stripped from price |
+| `#nfound` | Server → Terminal | Product not found |
+| `#live?` | Server → Terminal | Keepalive probe (sent after 5 s idle timeout) |
+| `#live` | Terminal → Server | Keepalive reply |
+| `#queryprocessfailure` | Terminal → Server | Terminal did not receive a query response in time — server silently ignores, does NOT forward to `onReceive` |
+| `#mesg<l1len><l1><l2len><l2><tempo><0>` | Server → Terminal | Display arbitrary text (manual p.19) |
+
+**Keepalive timing:** `RecebeDoTerminal` has a 5 s `Socket.Select` timeout. After 2 consecutive unanswered `#live?` probes (`contLive >= 2`) the connection closes (~15 s max idle). When `#alwayslive` is accepted, the terminal maintains the connection without needing probes; the server still sends `#live?` as a safety net and the terminal should still reply with `#live`.
+
+### Terminal model identifiers
+
+| `tipo` | Model | Audio |
+|---|---|---|
+| `tc406` + firmware `3.*` | G2 S | Yes — `#playaudiowithmessage` (manual p.33) |
+| `tc406` + other firmware | G2 S (older) | No |
+| `tc502` | Older model | No |
+
+### `#playaudiowithmessage` format (G2 S with audio only)
+
+```
+#playaudiowithmessage<6-char hex WAV size><duracao+48><volume+48><2-digit desc len><desc><2-digit price len><price><WAV bytes>
+```
+- WAV: 8 kHz, Mono, 8-bit PCM_U8, 16 KB–68 KB, duration 2–7 s
+- Falls back to `SendProcPrice()` automatically for non-G2 S terminals
+
+### Config blob encoding (`#config02`, `#reconf02`, `#updconfig`)
+
+Length-prefixed ASCII: each field is preceded by `(char)(length + 48)`. For example, a 7-char IP `1.2.3.4` is encoded as `(char)(7+48)` + `"1.2.3.4"` = `'7' + "1.2.3.4"`. All fields use this scheme.
+
+### `NormalizeCodigo` (in `TrayApplicationContext`)
+
+Barcodes received from the terminal go through `.Trim('\0',' ','\r','\n').TrimStart('#')` before lookup, so `#7891000315507\0` becomes `7891000315507`.
+
 ## Git Workflow
 
 Branch strategy: `feature/*` → `develop` → `release/*` → `master`
