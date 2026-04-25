@@ -523,6 +523,12 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 if (listaSock.Count == 1)// se o terminal enviou algo
                 {
                     int bytesRecebidos = sock.Receive(dados);// faz a leitura
+                    if (bytesRecebidos == 0)
+                    {
+                        // Conexão fechada graciosamente pelo terminal (FIN/EOF)
+                        System.Diagnostics.Debug.WriteLine("RecebeDoTerminal: 0 bytes — conexão encerrada pelo terminal.");
+                        return -1;
+                    }
                     comando = new System.Text.ASCIIEncoding().GetString(dados, 0, bytesRecebidos);// converte apenas os bytes recebidos para texto
                     System.Diagnostics.Debug.WriteLine($"RecebeDoTerminal: Received {bytesRecebidos} bytes: {comando}");
                     return 0; //  retorna OK
@@ -637,8 +643,17 @@ namespace BuscaPreco.Infrastructure.Scrapers
                     else if (controleConectado == -1)// se houve erro na leitura
                         break; // sai do loop
                     else {// se a leitura foi efetuada com sucesso
-                        if (paraServidor.CompareTo("#live") == 0)// verifica se a mensagem foi a resposta do live
-                            contLive = 0; // zera a contagem do live
+                        // Qualquer dado recebido indica que o terminal está vivo
+                        contLive = 0;
+                        paraServidor = (paraServidor ?? string.Empty).Trim('\0', '\r', '\n', ' ');
+                        if (string.IsNullOrEmpty(paraServidor))
+                        {
+                            // bytes nulos ou só espaços — ignora
+                        }
+                        else if (paraServidor.Equals("#live", StringComparison.Ordinal))// verifica se a mensagem foi a resposta do live
+                        {
+                            // contLive já zerado acima — nada a fazer
+                        }
                         else if (paraServidor.StartsWith("#queryprocessfailure"))// sinal interno do terminal — sem resposta ao scan dentro do prazo
                         {
                             System.Diagnostics.Debug.WriteLine("ProcessaTerminal: #queryprocessfailure recebido — terminal não recebeu resposta a tempo. Ignorando.");
