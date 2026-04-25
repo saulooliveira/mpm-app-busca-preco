@@ -680,8 +680,8 @@ jobs:
           New-Item -ItemType Directory -Path $staging -Force | Out-Null
           Copy-Item -Path "./publish/win-x64/*" -Destination $staging -Recurse -Force
 
-          # Remove arquivos de desenvolvimento e depuração
-          @("*.pdb", "*.xml", "*.log", "*.sqlite", "appsettings.Development.json", "config.yaml") | ForEach-Object {
+          # Remove arquivos de desenvolvimento, depuração e dados locais
+          @("*.pdb", "*.xml", "*.log", "*.sqlite", "*.dbf", "appsettings.Development.json", "config.yaml") | ForEach-Object {
             Get-ChildItem -Path $staging -Filter $_ -Recurse | Remove-Item -Force -ErrorAction SilentlyContinue
           }
 
