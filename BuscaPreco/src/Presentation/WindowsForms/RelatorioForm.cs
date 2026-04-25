@@ -62,7 +62,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             dgvProdutos.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
         }
 
-        private void CarregarDados()
+        public void CarregarDados()
         {
             var inicio = dtpInicio.Value.Date;
             var fim = dtpFim.Value.Date;
