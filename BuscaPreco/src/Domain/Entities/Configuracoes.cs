@@ -1,220 +1,91 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
+using BuscaPreco.CrossCutting;
 
 namespace BuscaPreco.Domain.Entities
 {
     public class Configuracoes
     {
-        public string IPServer;
-        public string IPCliente;
-        public string Mascara;
-        public string TLinha1;
-        public string TLinha2;
-        public string TLinha3;
-        public string TLinha4;
-        public int Tempo;
+        public string IPServer { get; set; } = string.Empty;
+        public string IPCliente { get; set; } = string.Empty;
+        public string Mascara { get; set; } = string.Empty;
+        public string TLinha1 { get; set; } = string.Empty;
+        public string TLinha2 { get; set; } = string.Empty;
+        public string TLinha3 { get; set; } = string.Empty;
+        public string TLinha4 { get; set; } = string.Empty;
+        public int Tempo { get; set; }
 
-        public int IPDinamico;
-        public int BuscaServidor;
+        public int IPDinamico { get; set; }
+        public int BuscaServidor { get; set; }
 
-        public string Gateway;
-        public string ServidorNomes;
-        public string Nome;
-        public string EndUpdate;
-        public string User;
-        public string Pass;
+        public string Gateway { get; set; } = string.Empty;
+        public string ServidorNomes { get; set; } = string.Empty;
+        public string Nome { get; set; } = string.Empty;
+        public string EndUpdate { get; set; } = string.Empty;
+        public string User { get; set; } = string.Empty;
+        public string Pass { get; set; } = string.Empty;
 
-        /*
-         Método: montaParamConfig
-         Função: cria a string para enviar para o terminal (#paramconfig)
-          
-         Retorno: string para ser enviada
-         */
-        public string montaParamConfig() {
-            string str = "#rparamconfig" + 
-                (IPDinamico == 0 ? '0' : '1') + 
-                (BuscaServidor == 0 ? '0' : '1');
-            return str;
-        }
+        public string montaParamConfig() =>
+            "#rparamconfig" +
+            (IPDinamico == 0 ? '0' : '1') +
+            (BuscaServidor == 0 ? '0' : '1');
 
-        /*
-         Método: montaParamConfig
-         Função: cria a string para enviar para o terminal (#updateconfig)
-          
-         Retorno: string para ser enviada
-         */
-        public string montaUpdateConfig() {
-            char tamGateway = (char)(Gateway.Length + 48);
-            char tamServNome = (char)(ServidorNomes.Length + 48);
-            char tamNome = (char)(Nome.Length + 48);
-            char tamEndUpdate = (char)(EndUpdate.Length + 48);
-            char tamUser = (char)(User.Length + 48);
-            char tamPass = (char)(Pass.Length + 48);
+        public string montaUpdateConfig() =>
+            "#rupdconfig" +
+            GertecProtocol.LenChar(Gateway) + Gateway +
+            GertecProtocol.LenChar(ServidorNomes) + ServidorNomes +
+            GertecProtocol.LenChar(Nome) + Nome +
+            GertecProtocol.LenChar(EndUpdate) + EndUpdate +
+            GertecProtocol.LenChar(User) + User +
+            GertecProtocol.LenChar(Pass) + Pass;
 
-            string str = "#rupdconfig" +
-                tamGateway + Gateway +
-                tamServNome + ServidorNomes +
-                tamNome + Nome +
-                tamEndUpdate + EndUpdate +
-                tamUser + User +
-                tamPass + Pass;
+        public string montaConfig() =>
+            "#reconf02" +
+            GertecProtocol.LenChar(IPServer) + IPServer +
+            GertecProtocol.LenChar(IPCliente) + IPCliente +
+            GertecProtocol.LenChar(Mascara) + Mascara +
+            GertecProtocol.LenChar(TLinha1) + TLinha1 +
+            GertecProtocol.LenChar(TLinha2) + TLinha2 +
+            GertecProtocol.LenChar(TLinha3) + TLinha3 +
+            GertecProtocol.LenChar(TLinha4) + TLinha4 +
+            (char)(Tempo + 48);
 
-            return str;
-        }
-
-        /*
-         Método: montaParamConfig
-         Função: cria a string para enviar para o terminal (#reconf02)
-          
-         Retorno: string para ser enviada
-         */
-        public string montaConfig() {
-            char tamIPServer = (char)(IPServer.Length + 48);
-            char tamIPCliente = (char)(IPCliente.Length + 48);
-            char tamMascara = (char)(Mascara.Length + 48);
-            char tamTLinha1 = (char)(TLinha1.Length + 48);
-            char tamTLinha2 = (char)(TLinha2.Length + 48);
-            char tamTLinha3 = (char)(TLinha3.Length + 48);
-            char tamTLinha4 = (char)(TLinha4.Length + 48);
-            
-            string str = "#reconf02" +
-                tamIPServer + IPServer +
-                tamIPCliente + IPCliente +
-                tamMascara + Mascara +
-                tamTLinha1 + TLinha1 +
-                tamTLinha2 + TLinha2 +
-                tamTLinha3 + TLinha3 +
-                tamTLinha4 + TLinha4 +
-                (char)(Tempo + 48);
-            return str;
-        }
-        /*
-         Método: ProcessaConfig
-         Função: Trata o recebimento das configurações vindas do terminal
-         
-         Entrada: str - comando
-         */
         public void ProcessaConfig(string str)
         {
             str = (str ?? string.Empty).Trim('\0', '\r', '\n', ' ');
-            if (string.IsNullOrEmpty(str) || !str.StartsWith("#config02"))
-            {
-                System.Diagnostics.Debug.WriteLine($"ProcessaConfig: string inválida recebida: '{str}'");
-                return;
-            }
+            if (string.IsNullOrEmpty(str) || !str.StartsWith("#config02")) return;
+            str = str.Substring("#config02".Length);
 
-            int tamanho;
-            str = str.Substring(9);
-
-            char[] strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            IPServer = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            IPCliente = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            Mascara = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            TLinha1 = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            TLinha2 = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            TLinha3 = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            TLinha4 = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            Tempo = (int)(strchar[0] - '0');
+            IPServer = GertecProtocol.ParseField(ref str);
+            IPCliente = GertecProtocol.ParseField(ref str);
+            Mascara = GertecProtocol.ParseField(ref str);
+            TLinha1 = GertecProtocol.ParseField(ref str);
+            TLinha2 = GertecProtocol.ParseField(ref str);
+            TLinha3 = GertecProtocol.ParseField(ref str);
+            TLinha4 = GertecProtocol.ParseField(ref str);
+            Tempo = string.IsNullOrEmpty(str) ? 0 : str[0] - '0';
         }
 
-        /*
-         Método: ProcessaConfig
-         Função: Trata o recebimento das configurações vindas do terminal
-         
-         Entrada: str - comando
-         */
         public void ProcessaParam(string str)
         {
             str = (str ?? string.Empty).Trim('\0', '\r', '\n', ' ');
-            if (string.IsNullOrEmpty(str) || !str.StartsWith("#paramconfig"))
-            {
-                System.Diagnostics.Debug.WriteLine($"ProcessaParam: string inválida recebida: '{str}'");
-                return;
-            }
-
-            str = str.Substring(12);
-
-            char[] strchar = str.ToCharArray();
-            IPDinamico = strchar[0] - 48;
-            BuscaServidor = strchar[1] - 48;
+            if (string.IsNullOrEmpty(str) || !str.StartsWith("#paramconfig")) return;
+            str = str.Substring("#paramconfig".Length);
+            if (str.Length < 2) return;
+            IPDinamico = str[0] - 48;
+            BuscaServidor = str[1] - 48;
         }
 
-        /*
-         Método: ProcessaConfig
-         Função: Trata o recebimento das configurações vindas do terminal
-         
-         Entrada: str - comando
-         */
         public void ProcessaUpdate(string str)
         {
             str = (str ?? string.Empty).Trim('\0', '\r', '\n', ' ');
-            if (string.IsNullOrEmpty(str) || !str.StartsWith("#updconfig"))
-            {
-                System.Diagnostics.Debug.WriteLine($"ProcessaUpdate: string inválida recebida: '{str}'");
-                return;
-            }
+            if (string.IsNullOrEmpty(str) || !str.StartsWith("#updconfig")) return;
+            str = str.Substring("#updconfig".Length);
 
-            int tamanho;
-            str = str.Substring(10);
-
-            char[] strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            Gateway = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            ServidorNomes = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            Nome = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            EndUpdate = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            User = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
-
-            strchar = str.ToCharArray();
-            tamanho = (int)(strchar[0] - 48);
-            Pass = str.Substring(1, tamanho);
-            str = str.Substring(tamanho + 1);
+            Gateway = GertecProtocol.ParseField(ref str);
+            ServidorNomes = GertecProtocol.ParseField(ref str);
+            Nome = GertecProtocol.ParseField(ref str);
+            EndUpdate = GertecProtocol.ParseField(ref str);
+            User = GertecProtocol.ParseField(ref str);
+            Pass = GertecProtocol.ParseField(ref str);
         }
     }
 }

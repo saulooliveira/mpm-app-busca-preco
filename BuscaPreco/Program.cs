@@ -116,7 +116,6 @@ namespace BuscaPreco
                     services.AddSingleton<ITerminalActivityMonitor, TerminalActivityMonitor>();
                     services.AddSingleton<IBuscaPrecosService, BuscaPrecosService>();
                     services.AddSingleton<IAlertService, WebhookAlertService>();
-                    services.AddSingleton<ITerminalDisplayService, TerminalDisplayService>();
                     services.AddSingleton<IEmailService, EmailService>();
                     services.AddHostedService<RelatorioDiarioBackgroundService>();
                     services.AddHostedService<ScreensaverPromocionalBackgroundService>();

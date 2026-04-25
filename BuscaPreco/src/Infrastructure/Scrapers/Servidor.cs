@@ -115,11 +115,6 @@ namespace BuscaPreco.Infrastructure.Scrapers
             }
         }
 
-        public void startServer()
-        {
-            Start();
-        }
-
         public void Start()
         {
             if (serverTask != null && !serverTask.IsCompleted)
@@ -149,14 +144,6 @@ namespace BuscaPreco.Infrastructure.Scrapers
             await serverReadyTcs.Task;
         }
 
-        [Obsolete]
-        public void stopServer()
-        {
-            cancellationTokenSource?.Cancel();
-            server?.Close();
-        }
-
-        // Non-obsolete wrapper method to stop the server
         public void Stop()
         {
             cancellationTokenSource?.Cancel();

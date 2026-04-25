@@ -245,8 +245,8 @@ namespace BuscaPreco.Presentation.WindowsForms
             auxconf.TLinha2 = l2.Text;
             auxconf.TLinha3 = l3.Text;
             auxconf.TLinha4 = l4.Text;
-            int t = Int32.Parse(time.Text);
-            auxconf.Tempo = (char)t;
+            int.TryParse(time.Text, out int t);
+            auxconf.Tempo = t;
 
             auxconf.Gateway = gateway.Text;
             auxconf.ServidorNomes = servnomes.Text;
