@@ -156,34 +156,6 @@ namespace BuscaPreco.Infrastructure.Scrapers
             }
         }
 
-        private void ConsultarMacAddress()
-        {
-            try
-            {
-                EnviaParaTerminal("#macaddr?");
-                Thread.Sleep(300);
-
-                string resposta = null;
-                if (RecebeDoTerminal(ref resposta) != 0 || string.IsNullOrEmpty(resposta))
-                    return;
-
-                resposta = resposta.Trim('\0', '\r', '\n', ' ');
-                if (!resposta.StartsWith("#macaddr"))
-                    return;
-
-                const int prefixLen = 8; // "#macaddr"
-                if (resposta.Length < prefixLen + 3)
-                    return;
-
-                int tamLen = (int)resposta[prefixLen + 1] - 48;
-                if (tamLen <= 0 || prefixLen + 2 + tamLen > resposta.Length)
-                    return;
-
-                macAddress = resposta.Substring(prefixLen + 2, tamLen).TrimEnd('\0', ' ');
-            }
-            catch { }
-        }
-
         private void EnviaParaTerminal(string comando)
         {
             sock.Send(Encoding.ASCII.GetBytes(comando));
@@ -268,8 +240,6 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 Thread.Sleep(500);
                 RecebeDoTerminal(ref paraServidor);
                 config.ProcessaUpdate((paraServidor ?? string.Empty).Trim('\0', '\r', '\n', ' '));
-
-                ConsultarMacAddress();
 
                 while (true)
                 {

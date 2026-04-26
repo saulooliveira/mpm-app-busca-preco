@@ -228,6 +228,8 @@ namespace BuscaPreco.Presentation.WindowsForms
 
             if (!_relatorioForm.Visible)
                 _relatorioForm.Show();
+            else
+                _relatorioForm.CarregarDados();
 
             _relatorioForm.WindowState = FormWindowState.Normal;
             _relatorioForm.BringToFront();
