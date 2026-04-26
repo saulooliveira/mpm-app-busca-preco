@@ -17,7 +17,7 @@ namespace BuscaPreco.Infrastructure.Services
         [DllImport("winspool.Drv", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool OpenPrinter(string szPrinter, out IntPtr hPrinter, IntPtr pd);
 
-        [DllImport("winspool.Drv", SetLastError = true)]
+        [DllImport("winspool.Drv", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool StartDocPrinter(IntPtr hPrinter, int level, [In] ref DOCINFO di);
 
         [DllImport("winspool.Drv", SetLastError = true)]
