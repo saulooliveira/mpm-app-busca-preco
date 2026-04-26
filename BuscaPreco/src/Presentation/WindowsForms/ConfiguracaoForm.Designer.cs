@@ -94,6 +94,8 @@
             this.btnRemoverFixado = new System.Windows.Forms.Button();
             this.btnLimparFixados = new System.Windows.Forms.Button();
             this.btnSalvarFixados = new System.Windows.Forms.Button();
+            this.lblBuscaResultados = new System.Windows.Forms.Label();
+            this.lblProdutosFixados = new System.Windows.Forms.Label();
             this.lblFirmwareInfo = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
@@ -109,10 +111,12 @@
             // lista
             // 
             this.lista.FormattingEnabled = true;
+            this.lista.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            this.lista.IntegralHeight = false;
             this.lista.Location = new System.Drawing.Point(12, 12);
             this.lista.Name = "lista";
-            this.lista.SelectionMode = System.Windows.Forms.SelectionMode.MultiExtended;
-            this.lista.Size = new System.Drawing.Size(178, 329);
+            this.lista.SelectionMode = System.Windows.Forms.SelectionMode.One;
+            this.lista.Size = new System.Drawing.Size(178, 350);
             this.lista.TabIndex = 0;
             this.lista.SelectedIndexChanged += new System.EventHandler(this.lista_SelectedIndexChanged);
             // 
@@ -125,7 +129,7 @@
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
             this.tabControl1.SelectedIndexChanged += new System.EventHandler(this.tabControl1_SelectedIndexChanged);
-            this.tabControl1.Size = new System.Drawing.Size(430, 327);
+            this.tabControl1.Size = new System.Drawing.Size(460, 350);
             this.tabControl1.TabIndex = 3;
             // 
             // tabPage1
@@ -658,58 +662,86 @@
             this.tabPagePromocoes.Text = "Promoções";
             this.tabPagePromocoes.UseVisualStyleBackColor = true;
             this.tabPagePromocoes.Location = new System.Drawing.Point(4, 22);
-            this.tabPagePromocoes.Size = new System.Drawing.Size(422, 301);
+            this.tabPagePromocoes.Size = new System.Drawing.Size(452, 324);
             this.tabPagePromocoes.TabIndex = 3;
             // 
             // txtBuscaProduto
             // 
             this.txtBuscaProduto.Location = new System.Drawing.Point(6, 8);
-            this.txtBuscaProduto.Size = new System.Drawing.Size(300, 20);
+            this.txtBuscaProduto.Size = new System.Drawing.Size(330, 20);
             this.txtBuscaProduto.PlaceholderText = "Buscar produto por nome...";
             // 
             // listBuscaResultados
             // 
-            this.listBuscaResultados.Location = new System.Drawing.Point(6, 34);
-            this.listBuscaResultados.Size = new System.Drawing.Size(300, 100);
+            this.listBuscaResultados.Location = new System.Drawing.Point(6, 53);
+            this.listBuscaResultados.Size = new System.Drawing.Size(330, 95);
             // 
             // btnAdicionarFixado
             // 
             this.btnAdicionarFixado.Text = "Adicionar ↓";
-            this.btnAdicionarFixado.Location = new System.Drawing.Point(312, 34);
-            this.btnAdicionarFixado.Size = new System.Drawing.Size(100, 24);
+            this.btnAdicionarFixado.Location = new System.Drawing.Point(342, 84);
+            this.btnAdicionarFixado.Size = new System.Drawing.Size(100, 28);
+            this.btnAdicionarFixado.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             // 
             // listFixados
             // 
-            this.listFixados.Location = new System.Drawing.Point(6, 145);
-            this.listFixados.Size = new System.Drawing.Size(300, 100);
+            this.listFixados.Location = new System.Drawing.Point(6, 186);
+            this.listFixados.Size = new System.Drawing.Size(330, 95);
             // 
             // btnRemoverFixado
             // 
             this.btnRemoverFixado.Text = "Remover";
-            this.btnRemoverFixado.Location = new System.Drawing.Point(312, 145);
-            this.btnRemoverFixado.Size = new System.Drawing.Size(100, 24);
+            this.btnRemoverFixado.Location = new System.Drawing.Point(342, 186);
+            this.btnRemoverFixado.Size = new System.Drawing.Size(100, 28);
+            this.btnRemoverFixado.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             // 
             // btnLimparFixados
             // 
             this.btnLimparFixados.Text = "Limpar tudo";
-            this.btnLimparFixados.Location = new System.Drawing.Point(312, 175);
-            this.btnLimparFixados.Size = new System.Drawing.Size(100, 24);
+            this.btnLimparFixados.Location = new System.Drawing.Point(342, 220);
+            this.btnLimparFixados.Size = new System.Drawing.Size(100, 28);
+            this.btnLimparFixados.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             // 
             // btnSalvarFixados
             // 
             this.btnSalvarFixados.Text = "Salvar promoções";
-            this.btnSalvarFixados.Location = new System.Drawing.Point(6, 255);
-            this.btnSalvarFixados.Size = new System.Drawing.Size(406, 30);
+            this.btnSalvarFixados.Location = new System.Drawing.Point(6, 287);
+            this.btnSalvarFixados.Size = new System.Drawing.Size(436, 30);
+            this.btnSalvarFixados.BackColor = System.Drawing.Color.FromArgb(37, 99, 235);
+            this.btnSalvarFixados.ForeColor = System.Drawing.Color.White;
+            this.btnSalvarFixados.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            // 
+            // lblBuscaResultados
+            // 
+            this.lblBuscaResultados.AutoSize = true;
+            this.lblBuscaResultados.Location = new System.Drawing.Point(6, 34);
+            this.lblBuscaResultados.Name = "lblBuscaResultados";
+            this.lblBuscaResultados.Size = new System.Drawing.Size(113, 13);
+            this.lblBuscaResultados.TabIndex = 0;
+            this.lblBuscaResultados.Text = "Resultados da busca";
+            // 
+            // lblProdutosFixados
+            // 
+            this.lblProdutosFixados.AutoSize = true;
+            this.lblProdutosFixados.Location = new System.Drawing.Point(6, 167);
+            this.lblProdutosFixados.Name = "lblProdutosFixados";
+            this.lblProdutosFixados.Size = new System.Drawing.Size(130, 13);
+            this.lblProdutosFixados.TabIndex = 1;
+            this.lblProdutosFixados.Text = "Produtos em promoção";
             // 
             // ConfiguracaoForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(638, 372);
+            this.BackColor = System.Drawing.Color.WhiteSmoke;
+            this.ClientSize = new System.Drawing.Size(668, 387);
             this.Controls.Add(this.lblFirmwareInfo);
             this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.lista);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
             this.Name = "ConfiguracaoForm";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Configuração Busca-Preço";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.Form1_FormClosed);
             this.Load += new System.EventHandler(this.Form1_Load);
@@ -733,6 +765,8 @@
             this.tabPagePromocoes.Controls.Add(this.btnRemoverFixado);
             this.tabPagePromocoes.Controls.Add(this.btnLimparFixados);
             this.tabPagePromocoes.Controls.Add(this.btnSalvarFixados);
+            this.tabPagePromocoes.Controls.Add(this.lblBuscaResultados);
+            this.tabPagePromocoes.Controls.Add(this.lblProdutosFixados);
 
             this.tabControl1.Controls.Add(this.tabPagePromocoes);
 
@@ -747,7 +781,7 @@
             this.groupBox3.PerformLayout();
             // ── Label versão firmware ────────────────────────────────────────
             this.lblFirmwareInfo.Location = new System.Drawing.Point(196, 345);
-            this.lblFirmwareInfo.Size = new System.Drawing.Size(430, 20);
+            this.lblFirmwareInfo.Size = new System.Drawing.Size(460, 30);
             this.lblFirmwareInfo.Font = new System.Drawing.Font("Segoe UI", 8f, System.Drawing.FontStyle.Italic);
             this.lblFirmwareInfo.ForeColor = System.Drawing.Color.Gray;
             this.lblFirmwareInfo.Text = "Selecione um terminal para ver a versão de firmware.";
@@ -823,6 +857,8 @@
         private System.Windows.Forms.Button btnRemoverFixado;
         private System.Windows.Forms.Button btnLimparFixados;
         private System.Windows.Forms.Button btnSalvarFixados;
+        private System.Windows.Forms.Label lblBuscaResultados;
+        private System.Windows.Forms.Label lblProdutosFixados;
         private System.Windows.Forms.Label lblFirmwareInfo;
     }
 }

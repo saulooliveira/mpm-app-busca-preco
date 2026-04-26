@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Windows.Forms;
 using System.Linq;
 using BuscaPreco.Application.Configurations;
@@ -148,6 +149,16 @@ namespace BuscaPreco.Presentation.WindowsForms
             // Salva config.yaml local E envia #reconf02 ao terminal selecionado
             try
             {
+                if (!ValidarCamposConfig(out var mensagemErro))
+                {
+                    MessageBox.Show(
+                        mensagemErro,
+                        "Configuração inválida",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
                 var conf = geraConfig();
                 var path = Path.Combine(AppContext.BaseDirectory, "config.yaml");
                 SaveConfigToFile(conf, path);
@@ -183,6 +194,16 @@ namespace BuscaPreco.Presentation.WindowsForms
         {
             try
             {
+                if (!ValidarCamposUpdate(out var mensagemErro))
+                {
+                    MessageBox.Show(
+                        mensagemErro,
+                        "Dados inválidos",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
                 var terminal = GetTerminalSelecionado();
                 if (terminal == null)
                 {
@@ -238,22 +259,22 @@ namespace BuscaPreco.Presentation.WindowsForms
         private Configuracoes geraConfig()
         {
             Configuracoes auxconf = new Configuracoes();
-            auxconf.IPCliente = ipcliente.Text;
-            auxconf.IPServer = ipservidor.Text;
-            auxconf.Mascara = mascara.Text;
-            auxconf.TLinha1 = l1.Text;
-            auxconf.TLinha2 = l2.Text;
-            auxconf.TLinha3 = l3.Text;
-            auxconf.TLinha4 = l4.Text;
+            auxconf.IPCliente = ipcliente.Text.Trim();
+            auxconf.IPServer = ipservidor.Text.Trim();
+            auxconf.Mascara = mascara.Text.Trim();
+            auxconf.TLinha1 = l1.Text.Trim();
+            auxconf.TLinha2 = l2.Text.Trim();
+            auxconf.TLinha3 = l3.Text.Trim();
+            auxconf.TLinha4 = l4.Text.Trim();
             int.TryParse(time.Text, out int t);
             auxconf.Tempo = t;
 
-            auxconf.Gateway = gateway.Text;
-            auxconf.ServidorNomes = servnomes.Text;
-            auxconf.Nome = nome.Text;
-            auxconf.EndUpdate = ftpserv.Text;
-            auxconf.User = usuario.Text;
-            auxconf.Pass = senha.Text;
+            auxconf.Gateway = gateway.Text.Trim();
+            auxconf.ServidorNomes = servnomes.Text.Trim();
+            auxconf.Nome = nome.Text.Trim();
+            auxconf.EndUpdate = ftpserv.Text.Trim();
+            auxconf.User = usuario.Text.Trim();
+            auxconf.Pass = senha.Text.Trim();
 
             auxconf.IPDinamico = dinamico.Checked ? 1 : 0;
             auxconf.BuscaServidor = busca.Checked ? 1 : 0;
@@ -458,6 +479,65 @@ namespace BuscaPreco.Presentation.WindowsForms
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
         {
             // Ciclo de vida do servidor é controlado no TrayApplicationContext.
+        }
+
+        private bool ValidarCamposConfig(out string mensagemErro)
+        {
+            if (!int.TryParse(time.Text.Trim(), out var tempoConfig) || tempoConfig < 1 || tempoConfig > 9)
+            {
+                mensagemErro = "O campo 'Tempo' deve ser um número entre 1 e 9 segundos.";
+                return false;
+            }
+
+            if (!IsIpv4Valido(ipservidor.Text))
+            {
+                mensagemErro = "Informe um IP de servidor válido (ex.: 192.168.0.10).";
+                return false;
+            }
+
+            if (!dinamico.Checked && !IsIpv4Valido(ipcliente.Text))
+            {
+                mensagemErro = "Informe um IP de terminal válido ou marque 'IP Dinâmico'.";
+                return false;
+            }
+
+            if (!dinamico.Checked && !IsIpv4Valido(mascara.Text))
+            {
+                mensagemErro = "Informe uma máscara de rede válida (ex.: 255.255.255.0).";
+                return false;
+            }
+
+            mensagemErro = string.Empty;
+            return true;
+        }
+
+        private bool ValidarCamposUpdate(out string mensagemErro)
+        {
+            if (!string.IsNullOrWhiteSpace(gateway.Text) && !IsIpv4Valido(gateway.Text))
+            {
+                mensagemErro = "Gateway inválido. Informe um IPv4 válido ou deixe o campo em branco.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(nome.Text))
+            {
+                mensagemErro = "Informe o nome do terminal antes de enviar a atualização.";
+                return false;
+            }
+
+            mensagemErro = string.Empty;
+            return true;
+        }
+
+        private static bool IsIpv4Valido(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            if (!IPAddress.TryParse(value.Trim(), out var ip))
+                return false;
+
+            return ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork;
         }
     }
 }
