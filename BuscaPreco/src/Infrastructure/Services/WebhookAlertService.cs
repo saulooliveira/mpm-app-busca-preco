@@ -1,6 +1,7 @@
 using System;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
@@ -23,16 +24,25 @@ namespace BuscaPreco.Infrastructure.Services
 
         public async Task NotifyProdutoNaoEncontradoAsync(string codigoBarras)
         {
-            if (string.IsNullOrWhiteSpace(_featureConfig.WebhookUrl))
+            if (!TryGetValidWebhookUri(_featureConfig.WebhookUrl, out var webhookUri))
+            {
+                return;
+            }
+
+            var codigoNormalizado = Validators.SomenteDigitos(codigoBarras);
+            if (string.IsNullOrWhiteSpace(codigoNormalizado))
             {
                 return;
             }
 
             try
             {
-                var payload = "{\"mensagem\":\"Atenção: Produto código " + codigoBarras + " bipado no terminal, mas não encontrado no sistema.\"}";
+                var payload = JsonSerializer.Serialize(new
+                {
+                    mensagem = $"Atenção: Produto código {codigoNormalizado} bipado no terminal, mas não encontrado no sistema."
+                });
                 var content = new StringContent(payload, Encoding.UTF8, "application/json");
-                using (var response = await HttpClient.PostAsync(_featureConfig.WebhookUrl, content).ConfigureAwait(false))
+                using (var response = await HttpClient.PostAsync(webhookUri, content).ConfigureAwait(false))
                 {
                     if (!response.IsSuccessStatusCode)
                     {
@@ -44,6 +54,33 @@ namespace BuscaPreco.Infrastructure.Services
             {
                 _logger.Warning("Erro ao enviar webhook de produto não cadastrado: {Erro}", ex.Message);
             }
+        }
+
+        private bool TryGetValidWebhookUri(string url, out Uri webhookUri)
+        {
+            webhookUri = null;
+
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return false;
+            }
+
+            if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var parsedUri))
+            {
+                _logger.Warning("WebhookUrl inválida, envio ignorado.");
+                return false;
+            }
+
+            var isHttpScheme = parsedUri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+                               parsedUri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+            if (!isHttpScheme)
+            {
+                _logger.Warning("WebhookUrl deve usar HTTP ou HTTPS, envio ignorado.");
+                return false;
+            }
+
+            webhookUri = parsedUri;
+            return true;
         }
     }
 }
