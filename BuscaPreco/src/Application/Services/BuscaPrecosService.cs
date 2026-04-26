@@ -38,15 +38,22 @@ namespace BuscaPreco.Application.Services
         public (string des, decimal vlrVenda1) BuscarPorCodigo(string codigo)
         {
             _terminalActivityMonitor.MarkActivity();
+            var codigoNormalizado = Validators.SomenteDigitos(codigo);
 
-            var produto = _produtoCacheService.BuscarPorCodigo(codigo);
+            if (string.IsNullOrWhiteSpace(codigoNormalizado))
+            {
+                _logger.Warning("Consulta ignorada por código inválido ou vazio.");
+                return (string.Empty, 0m);
+            }
+
+            var produto = _produtoCacheService.BuscarPorCodigo(codigoNormalizado);
             var encontrado = produto != null && !string.IsNullOrWhiteSpace(produto.Descricao);
 
             if (!encontrado)
-                _ = Task.Run(() => _alertService.NotifyProdutoNaoEncontradoAsync(codigo));
+                _ = Task.Run(() => _alertService.NotifyProdutoNaoEncontradoAsync(codigoNormalizado));
 
             LogAuditoria(
-                codigo,
+                codigoNormalizado,
                 encontrado ? produto.Descricao : string.Empty,
                 encontrado ? produto.Preco : 0m);
 
