@@ -1,0 +1,277 @@
+@page
+@model BuscaPreco.Pages.ConfiguracaoModel
+@{
+    ViewData["Title"] = "Configurações";
+}
+
+<div class="container-fluid py-3">
+    <h4 class="mb-3 fw-bold text-primary">Configurações</h4>
+
+    <ul class="nav nav-tabs mb-0" id="cfgTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabTerminal" type="button">Terminais</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabPromocoes" type="button" id="tabPromBtn">Promoções</button>
+        </li>
+    </ul>
+
+    <div class="tab-content border border-top-0 rounded-bottom p-3 bg-white">
+
+        <!-- Terminal Config Tab -->
+        <div class="tab-pane fade show active" id="tabTerminal">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="fw-semibold">Terminais conectados</span>
+                        <button class="btn btn-sm btn-outline-secondary" id="btnAtualizarTerminais">↺ Atualizar</button>
+                    </div>
+                    <select class="form-select font-monospace" id="selectTerminal" size="10" style="font-size:.85rem"></select>
+                    <div id="lblFirmware" class="text-muted mt-1" style="font-size:.8rem"></div>
+                </div>
+
+                <div class="col-md-8">
+                    <h6 class="fw-semibold border-bottom pb-1">Configuração de Rede <small class="text-muted fw-normal">(#config02)</small></h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-sm-5">
+                            <label class="form-label small">IP Servidor</label>
+                            <input type="text" class="form-control form-control-sm" id="fIPServidor" placeholder="192.168.1.1" />
+                        </div>
+                        <div class="col-sm-5">
+                            <label class="form-label small">IP Cliente</label>
+                            <input type="text" class="form-control form-control-sm" id="fIPCliente" placeholder="192.168.1.10" />
+                        </div>
+                        <div class="col-sm-5">
+                            <label class="form-label small">Máscara</label>
+                            <input type="text" class="form-control form-control-sm" id="fMascara" placeholder="255.255.255.0" />
+                        </div>
+                        <div class="col-sm-2">
+                            <label class="form-label small">Tempo</label>
+                            <input type="number" class="form-control form-control-sm" id="fTempo" min="0" max="9" value="3" />
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small">Linha 1 (exibição)</label>
+                            <input type="text" class="form-control form-control-sm" id="fL1" />
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small">Linha 2</label>
+                            <input type="text" class="form-control form-control-sm" id="fL2" />
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small">Linha 3</label>
+                            <input type="text" class="form-control form-control-sm" id="fL3" />
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small">Linha 4</label>
+                            <input type="text" class="form-control form-control-sm" id="fL4" />
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="btnEnviarConfig">Enviar Config ao Terminal</button>
+
+                    <h6 class="fw-semibold border-bottom pb-1 mt-4">Gateway e Nome <small class="text-muted fw-normal">(#rupdconfig)</small></h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-sm-6">
+                            <label class="form-label small">Gateway</label>
+                            <input type="text" class="form-control form-control-sm" id="fGateway" />
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small">Nome do Terminal</label>
+                            <input type="text" class="form-control form-control-sm" id="fNome" />
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" id="btnEnviarUpdate">Enviar Update</button>
+
+                    <h6 class="fw-semibold border-bottom pb-1 mt-4">Parâmetros <small class="text-muted fw-normal">(#rparamconfig)</small></h6>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="fIPDinamico" />
+                        <label class="form-check-label small" for="fIPDinamico">IP Dinâmico (DHCP)</label>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" id="btnEnviarParams">Enviar Params</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Promoções Tab -->
+        <div class="tab-pane fade" id="tabPromocoes">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <h6 class="fw-semibold">Catálogo de Produtos</h6>
+                    <input type="text" class="form-control form-control-sm mb-2" id="txtBusca"
+                           placeholder="Filtrar por código ou descrição..." />
+                    <select class="form-select" id="listResultados" size="12" style="font-size:.85rem"></select>
+                    <button class="btn btn-sm btn-success mt-2" id="btnAdicionar">Adicionar →</button>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="fw-semibold">Produtos Fixados em Destaque</h6>
+                    <select class="form-select" id="listFixados" size="12" style="font-size:.85rem"></select>
+                    <div class="d-flex gap-2 mt-2">
+                        <button class="btn btn-sm btn-danger" id="btnRemover">Remover</button>
+                        <button class="btn btn-sm btn-outline-secondary" id="btnLimpar">Limpar Tudo</button>
+                        <button class="btn btn-sm btn-primary ms-auto" id="btnSalvarFixados">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let terminais = [];
+let todosProdutos = [];
+let fixadosCodigos = [];
+let produtosCarregados = false;
+
+// ---------- Terminais ----------
+async function carregarTerminais() {
+    try {
+        const r = await fetch('/api/terminais');
+        terminais = await r.json();
+    } catch {
+        terminais = [];
+    }
+    const sel = document.getElementById('selectTerminal');
+    sel.innerHTML = terminais.length
+        ? terminais.map((t, i) => `<option value="${i}">${escHtml(t.descricao)}</option>`).join('')
+        : '<option disabled>Nenhum terminal conectado</option>';
+    document.getElementById('lblFirmware').textContent = '';
+}
+
+document.getElementById('btnAtualizarTerminais').addEventListener('click', carregarTerminais);
+
+document.getElementById('selectTerminal').addEventListener('change', async e => {
+    const idx = parseInt(e.target.value);
+    if (isNaN(idx)) return;
+    const r = await fetch(`/api/terminais/${idx}`);
+    if (!r.ok) return;
+    const c = await r.json();
+    document.getElementById('fIPServidor').value  = c.ipServidor  || '';
+    document.getElementById('fIPCliente').value   = c.ipCliente   || '';
+    document.getElementById('fMascara').value     = c.mascara     || '';
+    document.getElementById('fTempo').value       = c.tempo       ?? 3;
+    document.getElementById('fL1').value          = c.linha1      || '';
+    document.getElementById('fL2').value          = c.linha2      || '';
+    document.getElementById('fL3').value          = c.linha3      || '';
+    document.getElementById('fL4').value          = c.linha4      || '';
+    document.getElementById('fGateway').value     = c.gateway     || '';
+    document.getElementById('fNome').value        = c.nome        || '';
+    document.getElementById('fIPDinamico').checked = c.ipDinamico || false;
+
+    const t = terminais[idx];
+    const audioInfo = t.isG2SComAudio ? ' — G2 S (áudio)' : ' — G2 (sem áudio)';
+    const macInfo   = t.macAddress ? ' | MAC: ' + t.macAddress : '';
+    document.getElementById('lblFirmware').textContent =
+        `Modelo: ${t.tipo} | Firmware: ${t.versao}${audioInfo}${macInfo}`;
+});
+
+function selectedIdx() {
+    const v = document.getElementById('selectTerminal').value;
+    if (!v) { alert('Selecione um terminal na lista.'); return null; }
+    return parseInt(v);
+}
+
+document.getElementById('btnEnviarConfig').addEventListener('click', async () => {
+    const idx = selectedIdx(); if (idx === null) return;
+    const payload = {
+        ipServidor: document.getElementById('fIPServidor').value,
+        ipCliente:  document.getElementById('fIPCliente').value,
+        mascara:    document.getElementById('fMascara').value,
+        linha1:     document.getElementById('fL1').value,
+        linha2:     document.getElementById('fL2').value,
+        linha3:     document.getElementById('fL3').value,
+        linha4:     document.getElementById('fL4').value,
+        tempo:      parseInt(document.getElementById('fTempo').value) || 0
+    };
+    const r = await fetch(`/api/terminais/${idx}/config`, postJson(payload));
+    alert(r.ok ? 'Configuração enviada. O terminal será reiniciado.' : 'Erro ao enviar configuração.');
+});
+
+document.getElementById('btnEnviarUpdate').addEventListener('click', async () => {
+    const idx = selectedIdx(); if (idx === null) return;
+    const r = await fetch(`/api/terminais/${idx}/update`, postJson({
+        gateway: document.getElementById('fGateway').value,
+        nome:    document.getElementById('fNome').value
+    }));
+    alert(r.ok ? 'Update enviado ao terminal.' : 'Erro ao enviar update.');
+});
+
+document.getElementById('btnEnviarParams').addEventListener('click', async () => {
+    const idx = selectedIdx(); if (idx === null) return;
+    const r = await fetch(`/api/terminais/${idx}/params`, postJson({
+        ipDinamico: document.getElementById('fIPDinamico').checked
+    }));
+    alert(r.ok ? 'Parâmetros enviados ao terminal.' : 'Erro ao enviar parâmetros.');
+});
+
+// ---------- Promoções ----------
+document.getElementById('tabPromBtn').addEventListener('click', async () => {
+    if (!produtosCarregados) {
+        const r = await fetch('/api/produtos');
+        todosProdutos = await r.json();
+        produtosCarregados = true;
+        filtrar('');
+    }
+    const rf = await fetch('/api/fixados');
+    fixadosCodigos = await rf.json();
+    renderFixados();
+});
+
+let debounce;
+document.getElementById('txtBusca').addEventListener('input', e => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => filtrar(e.target.value), 300);
+});
+
+function filtrar(q) {
+    const up = q.toUpperCase();
+    const filtered = todosProdutos.filter(p =>
+        !up ||
+        (p.descricao1 || '').toUpperCase().includes(up) ||
+        (p.codigoItem || '').includes(q)
+    );
+    document.getElementById('listResultados').innerHTML =
+        filtered.slice(0, 300).map(p =>
+            `<option value="${escHtml(p.codigoItem)}">${escHtml(p.codigoItem)} — ${escHtml(p.descricao1 || '')}</option>`
+        ).join('');
+}
+
+function renderFixados() {
+    document.getElementById('listFixados').innerHTML =
+        fixadosCodigos.map(c => {
+            const p = todosProdutos.find(x => x.codigoItem === c);
+            const lbl = p ? `${c} — ${p.descricao1 || ''}` : c;
+            return `<option value="${escHtml(c)}">${escHtml(lbl)}</option>`;
+        }).join('');
+}
+
+document.getElementById('btnAdicionar').addEventListener('click', () => {
+    const v = document.getElementById('listResultados').value;
+    if (v && !fixadosCodigos.includes(v)) { fixadosCodigos.push(v); renderFixados(); }
+});
+
+document.getElementById('btnRemover').addEventListener('click', () => {
+    const v = document.getElementById('listFixados').value;
+    if (v) { fixadosCodigos = fixadosCodigos.filter(c => c !== v); renderFixados(); }
+});
+
+document.getElementById('btnLimpar').addEventListener('click', () => {
+    fixadosCodigos = []; renderFixados();
+});
+
+document.getElementById('btnSalvarFixados').addEventListener('click', async () => {
+    const r = await fetch('/api/fixados', postJson(fixadosCodigos));
+    alert(r.ok ? 'Promoções salvas com sucesso.' : 'Erro ao salvar promoções.');
+});
+
+// ---------- Helpers ----------
+function postJson(data) {
+    return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) };
+}
+
+function escHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+carregarTerminais();
+</script>
+}
