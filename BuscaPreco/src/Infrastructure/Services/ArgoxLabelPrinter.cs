@@ -36,9 +36,10 @@ namespace BuscaPreco.Infrastructure.Services
         private static extern bool ClosePrinter(IntPtr hPrinter);
 
         // Label: 50mm x 40mm (400 x 320 dots at 203 DPI)
-        public static void Imprimir(string nomePrinter, string nome, string preco, string codigoBarras)
+        public static void Imprimir(string nomePrinter, string nome, string preco, string codigoBarras, int copias = 1)
         {
             if (nome.Length > 35) nome = nome[..35];
+            if (copias < 1) copias = 1;
 
             var sb = new StringBuilder();
             sb.Append("Q320,24\r\n");
@@ -48,7 +49,7 @@ namespace BuscaPreco.Infrastructure.Services
             sb.Append($"A10,90,0,4,2,2,N,\"R$ {EscapePpla(preco)}\"\r\n");
             if (!string.IsNullOrWhiteSpace(codigoBarras))
                 sb.Append($"B10,185,0,1,2,4,70,B,\"{EscapePpla(codigoBarras)}\"\r\n");
-            sb.Append("P1\r\n");
+            sb.Append($"P{copias}\r\n");
 
             RawPrint(nomePrinter, Encoding.ASCII.GetBytes(sb.ToString()));
         }

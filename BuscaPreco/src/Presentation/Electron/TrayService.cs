@@ -56,6 +56,11 @@ public class TrayService
             },
             new MenuItem
             {
+                Label = "Imprimir Etiquetas",
+                Click = () => _ = AbrirJanelaAsync("/etiquetas", "Etiquetas", 1200, 760)
+            },
+            new MenuItem
+            {
                 Label = "Configurações",
                 Click = () => _ = AbrirJanelaAsync("/configuracao", "Configurações", 960, 680)
             },

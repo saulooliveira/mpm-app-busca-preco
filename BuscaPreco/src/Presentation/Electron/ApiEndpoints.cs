@@ -168,7 +168,7 @@ public static class ApiEndpoints
         {
             try
             {
-                ArgoxLabelPrinter.Imprimir(payload.Impressora, payload.Nome, payload.Preco, payload.Codigo);
+                ArgoxLabelPrinter.Imprimir(payload.Impressora, payload.Nome, payload.Preco, payload.Codigo, payload.Copias);
                 return Results.Ok(new { ok = true });
             }
             catch (Exception ex)
@@ -187,4 +187,4 @@ file record ParamsPayload(bool IpDinamico);
 
 file record UpdatePayload(string Gateway, string Nome);
 
-file record EtiquetaPayload(string Impressora, string Nome, string Preco, string Codigo);
+file record EtiquetaPayload(string Impressora, string Nome, string Preco, string Codigo, int Copias = 1);
