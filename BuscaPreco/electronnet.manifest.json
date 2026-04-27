@@ -1,0 +1,12 @@
+{
+  "executable": "BuscaPreco",
+  "splashscreen": {
+    "imageFile": ""
+  },
+  "name": "BuscaPreco",
+  "author": "MPM",
+  "singleInstance": true,
+  "environment": "Production",
+  "devPath": "http://localhost:8001",
+  "electronPort": 4000
+}
