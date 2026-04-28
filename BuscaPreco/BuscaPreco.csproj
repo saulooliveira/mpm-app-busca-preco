@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="ElectronNET.API" Version="23.6.2" />
     <PackageReference Include="dBASE.NET" Version="1.2.1" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
     <PackageReference Include="NetEscapades.Configuration.Yaml" Version="3.0.0" />
     <PackageReference Include="Serilog" Version="3.1.1" />
@@ -20,8 +21,21 @@
 
   <ItemGroup>
     <Compile Remove="tests\**\*.cs" />
+    <Compile Remove="Tests\**\*.cs" />
+    <Compile Remove="tools\**\*.cs" />
+    <Compile Remove="Tools\**\*.cs" />
+    <Content Remove="tests\**\*" />
+    <Content Remove="Tests\**\*" />
+    <Content Remove="tools\**\*" />
+    <Content Remove="Tools\**\*" />
     <EmbeddedResource Remove="tests\**\*" />
+    <EmbeddedResource Remove="Tests\**\*" />
+    <EmbeddedResource Remove="tools\**\*" />
+    <EmbeddedResource Remove="Tools\**\*" />
     <None Remove="tests\**\*" />
+    <None Remove="Tests\**\*" />
+    <None Remove="tools\**\*" />
+    <None Remove="Tools\**\*" />
   </ItemGroup>
 
   <ItemGroup>
