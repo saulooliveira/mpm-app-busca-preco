@@ -64,6 +64,12 @@ public sealed class GertecTerminalSimulator : IAsyncDisposable
         // Handshake usa leitura direta; background reader só sobe após o handshake.
         await RealizarHandshakeAsync(ct);
 
+        // Terminal.cs faz Thread.Sleep(500) antes de ler a resposta do updconfig.
+        // Se enviarmos um código imediatamente, ele chegará no buffer junto com a
+        // resposta do updconfig e será consumido por config.ProcessaUpdate(),
+        // fazendo o servidor entrar no loop principal com buffer vazio (timeout de 5 s).
+        await Task.Delay(700, ct);
+
         IniciarBackgroundReader();
         Conectado = true;
     }
