@@ -17,6 +17,7 @@ public static class ApiEndpoints
         MapRelatorioApi(app);
         MapProdutosApi(app);
         MapEtiquetaApi(app);
+        MapImpressorasApi(app);
     }
 
     private static void MapTerminaisApi(WebApplication app)
@@ -176,6 +177,12 @@ public static class ApiEndpoints
                 return Results.BadRequest(new { erro = ex.Message });
             }
         });
+    }
+
+    private static void MapImpressorasApi(WebApplication app)
+    {
+        app.MapGet("/api/impressoras", () =>
+            Results.Ok(ArgoxLabelPrinter.ListarImpressoras()));
     }
 }
 

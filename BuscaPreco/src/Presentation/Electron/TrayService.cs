@@ -5,6 +5,7 @@ using BuscaPreco.Infrastructure.Scrapers;
 using BuscaPreco.Infrastructure.Services;
 using ElectronNET.API;
 using ElectronNET.API.Entities;
+using ElectronApi = ElectronNET.API.Electron;
 
 namespace BuscaPreco.Presentation.Electron;
 
@@ -74,12 +75,12 @@ public class TrayService
             new MenuItem
             {
                 Label = "Sair",
-                Click = () => Electron.App.Quit()
+                Click = () => ElectronApi.App.Quit()
             }
         };
 
-        await Electron.Tray.Show(iconPath, menu);
-        Electron.Tray.SetToolTip("BuscaPreço — Monitoramento");
+        await ElectronApi.Tray.Show(iconPath, menu);
+        await ElectronApi.Tray.SetToolTip("BuscaPreço — Monitoramento");
     }
 
     private async Task AbrirJanelaAsync(string path, string titulo, int width, int height)
@@ -92,9 +93,9 @@ public class TrayService
             AutoHideMenuBar = true,
             Show = false
         };
-        var win = await Electron.WindowManager.CreateWindowAsync(options);
+        var win = await ElectronApi.WindowManager.CreateWindowAsync(options);
         win.OnReadyToShow += () => win.Show();
-        await win.LoadURL($"http://localhost:{BridgeSettings.WebPort}{path}");
+        win.LoadURL($"http://localhost:{BridgeSettings.WebPort}{path}");
     }
 
     private void ForcePriceSearch()
