@@ -86,8 +86,14 @@
                     <div class="mb-2">
                         <label class="form-label small fw-semibold mb-1">Impressora Argox</label>
                         <input id="inputImpressora" type="text" class="form-control form-control-sm"
-                               placeholder="Ex.: Argox OS-214 PPLZ" />
-                        <div class="form-text">Nome exato conforme exibido no Windows</div>
+                               placeholder="Carregando impressoras..." autocomplete="off"
+                               list="listaImpressoras" />
+                        <datalist id="listaImpressoras"></datalist>
+                        <div class="form-text d-flex justify-content-between">
+                            <span>Selecione ou digite o nome exato</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none"
+                                    id="btnRecarregarImpressoras" title="Atualizar lista">↺ Atualizar</button>
+                        </div>
                     </div>
 
                     <div id="statusImpressao" class="small mb-2"></div>
@@ -110,12 +116,39 @@ let todosOsProdutos = [];
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 const IMPRESSORA_KEY = 'etiqueta_impressora';
-document.getElementById('inputImpressora').value = localStorage.getItem(IMPRESSORA_KEY) || '';
-document.getElementById('inputImpressora').addEventListener('change', () =>
-    localStorage.setItem(IMPRESSORA_KEY, document.getElementById('inputImpressora').value.trim()));
+const inputImpressora = document.getElementById('inputImpressora');
+inputImpressora.value = localStorage.getItem(IMPRESSORA_KEY) || '';
+inputImpressora.addEventListener('change', () =>
+    localStorage.setItem(IMPRESSORA_KEY, inputImpressora.value.trim()));
+
+carregarImpressoras();
+document.getElementById('btnRecarregarImpressoras').addEventListener('click', carregarImpressoras);
 
 // Busca inicial (carrega todos os produtos)
 buscar('');
+
+// ─── Impressoras ──────────────────────────────────────────────────────────────
+async function carregarImpressoras() {
+    const datalist = document.getElementById('listaImpressoras');
+    try {
+        const r = await fetch('/api/impressoras');
+        const lista = r.ok ? await r.json() : [];
+        datalist.innerHTML = lista.map(n => `<option value="${escHtml(n)}">`).join('');
+
+        // Se o campo estiver vazio e houver exatamente uma Argox, pré-seleciona
+        if (!inputImpressora.value) {
+            const argox = lista.find(n => n.toLowerCase().includes('argox'));
+            if (argox) {
+                inputImpressora.value = argox;
+                localStorage.setItem(IMPRESSORA_KEY, argox);
+            } else if (lista.length > 0) {
+                inputImpressora.placeholder = `${lista.length} impressora(s) disponível(is)`;
+            }
+        }
+    } catch {
+        inputImpressora.placeholder = 'Digite o nome da impressora';
+    }
+}
 
 // ─── Busca ────────────────────────────────────────────────────────────────────
 async function buscar(q) {
@@ -365,9 +398,11 @@ document.getElementById('btnImprimir').addEventListener('click', async () => {
 
     let erros = 0;
     let enviados = 0;
+    const mensagensErro = [];
 
     for (const [, item] of carrinho) {
         const precoRaw = (item.preco || '0,00').trim();
+        setStatus('info', `Enviando "${item.nome}"...`);
         try {
             const r = await fetch('/api/etiqueta/imprimir', {
                 method: 'POST',
@@ -380,22 +415,25 @@ document.getElementById('btnImprimir').addEventListener('click', async () => {
                     copias: item.copias
                 })
             });
-            if (r.ok) { enviados += item.copias; }
-            else {
-                const d = await r.json();
+            if (r.ok) {
+                enviados += item.copias;
+            } else {
+                const d = await r.json().catch(() => ({}));
                 erros++;
-                console.error('Erro ao imprimir', item.codigo, d.erro);
+                mensagensErro.push(d.erro || 'Erro desconhecido');
             }
         } catch (e) {
             erros++;
-            console.error('Falha de rede ao imprimir', item.codigo, e);
+            mensagensErro.push('Falha de rede: ' + e.message);
         }
     }
 
     if (erros === 0) {
         setStatus('success', `✓ ${enviados} etiqueta${enviados !== 1 ? 's' : ''} enviada${enviados !== 1 ? 's' : ''} para a impressora.`);
     } else {
-        setStatus('danger', `⚠ ${erros} produto(s) falharam. Verifique o console e o nome da impressora.`);
+        // Mostra a mensagem do primeiro erro diretamente na tela (sem alert)
+        const msgPrincipal = mensagensErro[0] || 'Verifique o nome da impressora.';
+        setStatus('danger', `⚠ Erro: ${msgPrincipal}`);
     }
 
     btn.disabled = carrinho.size === 0;

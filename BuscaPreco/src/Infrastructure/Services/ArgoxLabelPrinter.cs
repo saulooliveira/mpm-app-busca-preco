@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -6,6 +7,8 @@ namespace BuscaPreco.Infrastructure.Services
 {
     internal static class ArgoxLabelPrinter
     {
+        // ── Structs ──────────────────────────────────────────────────────────────
+
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct DOCINFO
         {
@@ -13,6 +16,16 @@ namespace BuscaPreco.Infrastructure.Services
             [MarshalAs(UnmanagedType.LPWStr)] public string pOutputFile;
             [MarshalAs(UnmanagedType.LPWStr)] public string pDataType;
         }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct PRINTER_INFO_4
+        {
+            public string pPrinterName;
+            public string pServerName;
+            public uint Attributes;
+        }
+
+        // ── P/Invoke ─────────────────────────────────────────────────────────────
 
         [DllImport("winspool.Drv", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool OpenPrinter(string szPrinter, out IntPtr hPrinter, IntPtr pd);
@@ -35,6 +48,14 @@ namespace BuscaPreco.Infrastructure.Services
         [DllImport("winspool.Drv", SetLastError = true)]
         private static extern bool ClosePrinter(IntPtr hPrinter);
 
+        [DllImport("winspool.Drv", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool EnumPrinters(
+            uint Flags, string? Name, uint Level,
+            IntPtr pPrinterEnum, uint cbBuf,
+            out uint pcbNeeded, out uint pcReturned);
+
+        // ── Público ───────────────────────────────────────────────────────────────
+
         // Label: 50mm x 40mm (400 x 320 dots at 203 DPI)
         public static void Imprimir(string nomePrinter, string nome, string preco, string codigoBarras, int copias = 1)
         {
@@ -54,12 +75,61 @@ namespace BuscaPreco.Infrastructure.Services
             RawPrint(nomePrinter, Encoding.ASCII.GetBytes(sb.ToString()));
         }
 
+        /// <summary>Retorna os nomes de todas as impressoras instaladas no Windows.</summary>
+        public static IReadOnlyList<string> ListarImpressoras()
+        {
+            const uint PRINTER_ENUM_LOCAL       = 0x00000002;
+            const uint PRINTER_ENUM_CONNECTIONS = 0x00000004;
+            const uint level = 4;
+
+            var nomes = new List<string>();
+
+            try
+            {
+                EnumPrinters(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
+                    null, level, IntPtr.Zero, 0, out uint cbNeeded, out _);
+
+                if (cbNeeded == 0) return nomes;
+
+                var pMem = Marshal.AllocHGlobal((int)cbNeeded);
+                try
+                {
+                    if (!EnumPrinters(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
+                            null, level, pMem, cbNeeded, out _, out uint count))
+                        return nomes;
+
+                    int structSize = Marshal.SizeOf<PRINTER_INFO_4>();
+                    for (int i = 0; i < count; i++)
+                    {
+                        var info = Marshal.PtrToStructure<PRINTER_INFO_4>(pMem + i * structSize);
+                        if (!string.IsNullOrWhiteSpace(info.pPrinterName))
+                            nomes.Add(info.pPrinterName);
+                    }
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(pMem);
+                }
+            }
+            catch { /* não disponível fora do Windows */ }
+
+            return nomes;
+        }
+
+        // ── Privado ───────────────────────────────────────────────────────────────
+
         private static string EscapePpla(string s) => s.Replace("\"", "'");
 
         private static void RawPrint(string printerName, byte[] bytes)
         {
             if (!OpenPrinter(printerName, out var hPrinter, IntPtr.Zero))
-                throw new InvalidOperationException($"Não foi possível abrir a impressora '{printerName}'.");
+            {
+                var win32Err = Marshal.GetLastWin32Error();
+                throw new InvalidOperationException(
+                    $"Impressora '{printerName}' não encontrada ou inacessível. " +
+                    $"(Win32 erro {win32Err}) — Verifique se o nome está exatamente igual ao mostrado em " +
+                    "Painel de Controle → Dispositivos e Impressoras.");
+            }
 
             try
             {
@@ -71,7 +141,11 @@ namespace BuscaPreco.Infrastructure.Services
                 };
 
                 if (!StartDocPrinter(hPrinter, 1, ref docInfo))
-                    throw new InvalidOperationException("Falha ao iniciar documento na impressora.");
+                {
+                    var win32Err = Marshal.GetLastWin32Error();
+                    throw new InvalidOperationException(
+                        $"Falha ao iniciar documento na impressora. (Win32 erro {win32Err})");
+                }
 
                 try
                 {
@@ -81,7 +155,12 @@ namespace BuscaPreco.Infrastructure.Services
                     try
                     {
                         Marshal.Copy(bytes, 0, pBytes, bytes.Length);
-                        WritePrinter(hPrinter, pBytes, bytes.Length, out _);
+                        if (!WritePrinter(hPrinter, pBytes, bytes.Length, out int written) || written == 0)
+                        {
+                            var win32Err = Marshal.GetLastWin32Error();
+                            throw new InvalidOperationException(
+                                $"Falha ao enviar dados para a impressora. (Win32 erro {win32Err})");
+                        }
                     }
                     finally
                     {
