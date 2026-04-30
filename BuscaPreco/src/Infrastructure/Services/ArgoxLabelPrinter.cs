@@ -56,20 +56,43 @@ namespace BuscaPreco.Infrastructure.Services
 
         // ── Público ───────────────────────────────────────────────────────────────
 
-        // Label: 50mm x 40mm (400 x 320 dots at 203 DPI)
+        // Label: 110mm × 30mm (880 × 240 dots at 203 DPI)
+        // Layout: name (left, 1–2 lines) + large price (left) + barcode Code128 (right)
         public static void Imprimir(string nomePrinter, string nome, string preco, string codigoBarras, int copias = 1)
         {
-            if (nome.Length > 35) nome = nome[..35];
             if (copias < 1) copias = 1;
 
+            // Split name into two lines of 26 chars each (font 3 @ 1x = 16 dots/char, 26×16=416 < 440)
+            const int charsPerLine = 26;
+            string linha1 = nome.Length > charsPerLine ? nome[..charsPerLine] : nome;
+            string linha2 = nome.Length > charsPerLine
+                ? nome[charsPerLine..Math.Min(charsPerLine * 2, nome.Length)]
+                : string.Empty;
+
+            // Y position of the price block depends on whether we have a second name line
+            int precoY = string.IsNullOrEmpty(linha2) ? 35 : 62;
+
             var sb = new StringBuilder();
-            sb.Append("Q320,24\r\n");
-            sb.Append("q400\r\n");
+            // ── Dimensões: 110mm × 30mm ──────────────────────────────────────────
+            sb.Append("q880\r\n");       // largura: 110mm = 880 dots
+            sb.Append("Q240,24\r\n");    // altura:   30mm = 240 dots, gap = 3mm
             sb.Append("N\r\n");
-            sb.Append($"A10,15,0,3,1,1,N,\"{EscapePpla(nome)}\"\r\n");
-            sb.Append($"A10,90,0,4,2,2,N,\"R$ {EscapePpla(preco)}\"\r\n");
+
+            // ── Nome do produto (esquerda) ────────────────────────────────────────
+            sb.Append($"A10,5,0,3,1,1,N,\"{EscapePpla(linha1)}\"\r\n");
+            if (!string.IsNullOrEmpty(linha2))
+                sb.Append($"A10,32,0,3,1,1,N,\"{EscapePpla(linha2)}\"\r\n");
+
+            // ── Preço grande (esquerda) ───────────────────────────────────────────
+            sb.Append($"A10,{precoY},0,4,2,2,N,\"R$ {EscapePpla(preco)}\"\r\n");
+
+            // ── Código de barras Code 128 (direita) ───────────────────────────────
+            // x=445: deixa 435 dots à esquerda para nome/preço; Code128 13 dígitos
+            // com narrow=2 ocupa ~418 dots → 445+418=863 < 880 ✓
+            // height=185: y=10→195; HRI abaixo ~y=219 < 240 ✓
             if (!string.IsNullOrWhiteSpace(codigoBarras))
-                sb.Append($"B10,185,0,1,2,4,70,B,\"{EscapePpla(codigoBarras)}\"\r\n");
+                sb.Append($"B445,10,0,1,2,4,185,B,\"{EscapePpla(codigoBarras)}\"\r\n");
+
             sb.Append($"P{copias}\r\n");
 
             RawPrint(nomePrinter, Encoding.ASCII.GetBytes(sb.ToString()));
