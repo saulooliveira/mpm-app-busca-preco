@@ -664,14 +664,34 @@ jobs:
             --runtime win-x64 `
             --self-contained true `
             --no-restore `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=none `
+            -p:DebugSymbols=false `
             --output ./publish/win-x64
 
       - name: Package published output
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+
+          $staging = "staging_win_x64"
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+          Copy-Item -Path "./publish/win-x64/*" -Destination $staging -Recurse -Force
+
+          # Remove arquivos de desenvolvimento, depuração e dados locais
+          @("*.pdb", "*.xml", "*.log", "*.sqlite", "*.dbf", "appsettings.Development.json", "config.yaml") | ForEach-Object {
+            Get-ChildItem -Path $staging -Filter $_ -Recurse | Remove-Item -Force -ErrorAction SilentlyContinue
+          }
+
+          # Garante que config.example.yaml esteja no pacote para o usuário configurar
+          if (-not (Test-Path "$staging/config.example.yaml")) {
+            Copy-Item -Path "./BuscaPreco/config.example.yaml" -Destination $staging -Force -ErrorAction SilentlyContinue
+          }
+
           Compress-Archive `
-            -Path ./publish/win-x64/* `
+            -Path "$staging/*" `
             -DestinationPath ./artifacts/BuscaPreco-${{ github.ref_name }}-win-x64.zip `
             -Force
 

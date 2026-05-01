@@ -48,7 +48,7 @@ public class BuscaPrecoSocketE2ETests
         Log.Information("Products in DBF: {Count}", allProducts.Count);
         foreach (var prod in allProducts)
         {
-            Log.Information("Product - Code: {Code}, Description: {Desc}, Price: {Price}", prod.cod, prod.des, prod.vlrVenda1);
+            Log.Information("Product - Code: {Code}, Description: {Desc}, Price: {Price}", prod.CodigoItem, prod.Descricao1, prod.Preco);
         }
         
         // Assert that DBF has products
@@ -107,7 +107,7 @@ public class BuscaPrecoSocketE2ETests
             }
         };
 
-        servidor.startServer();
+        servidor.Start();
         
         // Wait for server to be ready before connecting (increased wait)
         await Task.Delay(2000);
@@ -141,9 +141,7 @@ public class BuscaPrecoSocketE2ETests
         var resposta = await ReadAsciiAsync(stream, timeoutMs: 5000);
         // Assert.Contains("#PRODUTO TESTE E2E|12,34", resposta);
 
-#pragma warning disable CS0612
-        servidor.stopServer();
-#pragma warning restore CS0612
+        servidor.Stop();
         Log.CloseAndFlush();
     }
 

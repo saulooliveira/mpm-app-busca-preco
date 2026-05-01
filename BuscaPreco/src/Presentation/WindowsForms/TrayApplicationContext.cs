@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Globalization;
 using System.Drawing;
 using System.IO;
@@ -19,7 +18,6 @@ namespace BuscaPreco.Presentation.WindowsForms
         private readonly Servidor _servidor;
         private readonly Func<ConfiguracaoForm> _logFormFactory;
         private readonly Func<RelatorioForm> _relatorioFormFactory;
-        private readonly ArrayList _terminaisConectados;
         private readonly AudioService _audioService;
         private readonly IProdutoCacheService _produtoCacheService;
         private ConfiguracaoForm _logForm;
@@ -38,7 +36,6 @@ namespace BuscaPreco.Presentation.WindowsForms
             _logger = logger;
             _servidor = servidor;
             _logFormFactory = logFormFactory;
-            _terminaisConectados = new ArrayList();
             _audioService = audioService;
             _produtoCacheService = produtoCacheService;
             _relatorioFormFactory = relatorioFormFactory;
@@ -67,19 +64,12 @@ namespace BuscaPreco.Presentation.WindowsForms
 
         private void InitializeServer()
         {
-            _servidor.onChange += OnChangeList;
             _servidor.onReceive += OnReceiveData;
+            _servidor.onChange += (lista) =>
+                _logger.Info("Lista de terminais atualizada. Total conectados: {Total}", lista.Count);
             _servidor.Start();
 
             _logger.Info("Servidor Gertec inicializado no contexto da bandeja.");
-        }
-
-        private void OnChangeList(ArrayList novaLista)
-        {
-            _terminaisConectados.Clear();
-            _terminaisConectados.AddRange(novaLista);
-
-            _logger.Info("Lista de terminais atualizada. Total conectados: {Total}", _terminaisConectados.Count);
         }
 
         private void OnReceiveData(object sender, string codigoRecebido)
@@ -157,7 +147,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             forceSearchItem.Click += (_, __) => ForcePriceSearch();
 
             var configItem = new ToolStripMenuItem("Configurações");
-            configItem.Click += (_, __) => ShowLogForm();
+            configItem.Click += (_, __) => ShowConfiguracaoForm();
 
             var relatorioItem = new ToolStripMenuItem("Relatório de Consultas");
             relatorioItem.Click += (_, __) => ShowRelatorioForm();
@@ -212,12 +202,6 @@ namespace BuscaPreco.Presentation.WindowsForms
             ShowConfiguracaoForm();
         }
 
-        private void ShowLogForm()
-        {
-            // kept for compatibility
-            ShowConfiguracaoForm();
-        }
-
         private void ShowConfiguracaoForm()
         {
             if (_logForm == null || _logForm.IsDisposed)
@@ -227,15 +211,12 @@ namespace BuscaPreco.Presentation.WindowsForms
             }
 
             if (!_logForm.Visible)
-            {
                 _logForm.Show();
-            }
 
             _logForm.WindowState = FormWindowState.Normal;
             _logForm.BringToFront();
             _logForm.Activate();
         }
-
 
         private void ShowRelatorioForm()
         {
@@ -246,9 +227,9 @@ namespace BuscaPreco.Presentation.WindowsForms
             }
 
             if (!_relatorioForm.Visible)
-            {
                 _relatorioForm.Show();
-            }
+            else
+                _relatorioForm.CarregarDados();
 
             _relatorioForm.WindowState = FormWindowState.Normal;
             _relatorioForm.BringToFront();
@@ -259,9 +240,7 @@ namespace BuscaPreco.Presentation.WindowsForms
         {
             var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "buscapreco.ico");
             if (File.Exists(iconPath))
-            {
                 return new Icon(iconPath);
-            }
 
             return SystemIcons.Application;
         }

@@ -1,49 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace BuscaPreco.Domain.Entities
 {
     public class Produto
     {
-        public string Unidade { get; set; } = "";       // "un" ou "kg"
-        public string CodigoItem { get; set; } = "";   // Código do Item
-        public decimal Preco { get; set; } = 0;      // Preço do Item
-        public string DiasValidade { get; set; } = "";   // Dias de validade (VVV)
-        public string Descricao1 { get; set; } = "";   // Descrição do Item - 1ª Linha
-        public string Descricao2 { get; set; } = "";    // Descrição do Item - 2ª Linha
-        public string CodigoFornecedor { get; set; } = "";// Código do Fornecedor
-        public string CodigoImagem { get; set; } = "";  // Código da Imagem
-        public string EANFornecedor { get; set; } = "";// EAN do Fornecedor
-        public string PercentualGlaciamento { get; set; } = ""; // Percentual de Glaciamento
-        public string PrecoPromocional { get; set; } = "";// Preço Promocional
+        public string Unidade { get; set; } = "";
+        public string CodigoItem { get; set; } = "";
+        public decimal Preco { get; set; } = 0;
+        public string DiasValidade { get; set; } = "";
+        public string Descricao1 { get; set; } = "";
+        public string Descricao2 { get; set; } = "";
+        public string CodigoFornecedor { get; set; } = "";
+        public string CodigoImagem { get; set; } = "";
+        public string EANFornecedor { get; set; } = "";
+        public string PercentualGlaciamento { get; set; } = "";
+        public string PrecoPromocional { get; set; } = "";
 
+        public Produto() { }
 
-        // Compatibilidade com legado: mantém contratos antigos usados por serviços de aplicação.
-        public string cod
-        {
-            get => CodigoItem;
-            set => CodigoItem = value;
-        }
-
-        public string des
-        {
-            get => Descricao1;
-            set => Descricao1 = value;
-        }
-
-        public decimal vlrVenda1
-        {
-            get => Preco;
-            set => Preco = value;
-        }
-
-        public Produto()
-        {
-
-        }
         public Produto(string unidade, string codigoItem, decimal preco, string diasValidade,
                        string descricao1, string descricao2, string codigoFornecedor, string codigoImagem,
                        string eanFornecedor, string percentualGlaciamento, string precoPromocional)
@@ -61,5 +33,4 @@ namespace BuscaPreco.Domain.Entities
             PrecoPromocional = precoPromocional;
         }
     }
-
 }

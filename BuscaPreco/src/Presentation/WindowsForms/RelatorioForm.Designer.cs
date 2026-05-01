@@ -28,6 +28,8 @@ namespace BuscaPreco.Presentation.WindowsForms
             this.btnAtualizar = new System.Windows.Forms.Button();
             this.tabMain = new System.Windows.Forms.TabControl();
             this.tabProdutos = new System.Windows.Forms.TabPage();
+            this.pnlBotoesRelatorio = new System.Windows.Forms.Panel();
+            this.btnImprimirEtiqueta = new System.Windows.Forms.Button();
             this.dgvProdutos = new System.Windows.Forms.DataGridView();
             this.tabHorario = new System.Windows.Forms.TabPage();
             this.pnlHorario = new System.Windows.Forms.Panel();
@@ -99,9 +101,20 @@ namespace BuscaPreco.Presentation.WindowsForms
                 | System.Windows.Forms.AnchorStyles.Left
                 | System.Windows.Forms.AnchorStyles.Right;
 
+            this.btnImprimirEtiqueta.Text = "Imprimir Etiqueta";
+            this.btnImprimirEtiqueta.Size = new System.Drawing.Size(140, 26);
+            this.btnImprimirEtiqueta.Location = new System.Drawing.Point(4, 4);
+            this.btnImprimirEtiqueta.Enabled = false;
+            this.btnImprimirEtiqueta.Click += new System.EventHandler(this.btnImprimirEtiqueta_Click);
+
+            this.pnlBotoesRelatorio.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.pnlBotoesRelatorio.Height = 36;
+            this.pnlBotoesRelatorio.Controls.Add(this.btnImprimirEtiqueta);
+
             this.tabProdutos.Text = "Top Produtos";
             this.dgvProdutos.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabProdutos.Controls.Add(this.dgvProdutos);
+            this.tabProdutos.Controls.Add(this.pnlBotoesRelatorio);
 
             this.tabHorario.Text = "Por Horário";
             this.pnlHorario.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -140,6 +153,8 @@ namespace BuscaPreco.Presentation.WindowsForms
         private System.Windows.Forms.Button btnAtualizar;
         private System.Windows.Forms.TabControl tabMain;
         private System.Windows.Forms.TabPage tabProdutos;
+        private System.Windows.Forms.Panel pnlBotoesRelatorio;
+        private System.Windows.Forms.Button btnImprimirEtiqueta;
         private System.Windows.Forms.DataGridView dgvProdutos;
         private System.Windows.Forms.TabPage tabHorario;
         private System.Windows.Forms.Panel pnlHorario;

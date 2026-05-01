@@ -172,6 +172,26 @@ namespace BuscaPreco.Infrastructure.Repositories
         /// SQLite strftime('%w'): 0=Domingo, 1=Segunda … 6=Sábado.
         /// Labels no RelatorioForm devem seguir esta ordem: Dom, Seg, Ter, Qua, Qui, Sex, Sáb.
         /// </summary>
+        public string BuscarPrecoMaisRecente(string codigoBarras)
+        {
+            try
+            {
+                using var conn = _db.AbrirConexao();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT preco FROM consultas
+                    WHERE codigo_barras = @cod AND status = 'Encontrado'
+                    ORDER BY data_hora DESC LIMIT 1;";
+                cmd.Parameters.AddWithValue("@cod", codigoBarras);
+                return cmd.ExecuteScalar() as string ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning("ConsultaRepository.BuscarPrecoMaisRecente: {Erro}", ex.Message);
+                return string.Empty;
+            }
+        }
+
         public int[] ConsultasPorDiaSemana(DateTime inicio, DateTime fim)
         {
             var result = new int[7];
