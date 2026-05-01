@@ -30,6 +30,7 @@ namespace BuscaPreco.Presentation.WindowsForms
             this.tabProdutos = new System.Windows.Forms.TabPage();
             this.pnlBotoesRelatorio = new System.Windows.Forms.Panel();
             this.btnImprimirEtiqueta = new System.Windows.Forms.Button();
+            this.btnEditarLayout = new System.Windows.Forms.Button();
             this.dgvProdutos = new System.Windows.Forms.DataGridView();
             this.tabHorario = new System.Windows.Forms.TabPage();
             this.pnlHorario = new System.Windows.Forms.Panel();
@@ -107,9 +108,15 @@ namespace BuscaPreco.Presentation.WindowsForms
             this.btnImprimirEtiqueta.Enabled = false;
             this.btnImprimirEtiqueta.Click += new System.EventHandler(this.btnImprimirEtiqueta_Click);
 
+            this.btnEditarLayout.Text = "Editar Layout";
+            this.btnEditarLayout.Size = new System.Drawing.Size(110, 26);
+            this.btnEditarLayout.Location = new System.Drawing.Point(152, 4);
+            this.btnEditarLayout.Click += new System.EventHandler(this.btnEditarLayout_Click);
+
             this.pnlBotoesRelatorio.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.pnlBotoesRelatorio.Height = 36;
             this.pnlBotoesRelatorio.Controls.Add(this.btnImprimirEtiqueta);
+            this.pnlBotoesRelatorio.Controls.Add(this.btnEditarLayout);
 
             this.tabProdutos.Text = "Top Produtos";
             this.dgvProdutos.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -155,6 +162,7 @@ namespace BuscaPreco.Presentation.WindowsForms
         private System.Windows.Forms.TabPage tabProdutos;
         private System.Windows.Forms.Panel pnlBotoesRelatorio;
         private System.Windows.Forms.Button btnImprimirEtiqueta;
+        private System.Windows.Forms.Button btnEditarLayout;
         private System.Windows.Forms.DataGridView dgvProdutos;
         private System.Windows.Forms.TabPage tabHorario;
         private System.Windows.Forms.Panel pnlHorario;

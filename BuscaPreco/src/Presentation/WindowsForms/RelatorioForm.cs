@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
+using BuscaPreco.Application.Interfaces;
 using BuscaPreco.Infrastructure.Repositories;
 using BuscaPreco.Infrastructure.Services;
 
@@ -11,15 +12,25 @@ namespace BuscaPreco.Presentation.WindowsForms
 {
     public partial class RelatorioForm : Form
     {
-        private readonly ConsultaRepository _consultaRepository;
+        private readonly ConsultaRepository              _consultaRepository;
+        private readonly ILabelPrintService              _labelPrintService;
+        private readonly IEtiquetaLayoutRepository       _layoutRepository;
+        private readonly Func<EtiquetaEditorForm>        _editorFactory;
 
         private int[] _porHora = new int[24];
         private int[] _porDia = new int[7];
         private List<(string Codigo, string Nome, int Qtd)> _topProdutos = new List<(string, string, int)>();
 
-        public RelatorioForm(ConsultaRepository consultaRepository)
+        public RelatorioForm(
+            ConsultaRepository consultaRepository,
+            ILabelPrintService labelPrintService,
+            IEtiquetaLayoutRepository layoutRepository,
+            Func<EtiquetaEditorForm> editorFactory)
         {
             _consultaRepository = consultaRepository;
+            _labelPrintService  = labelPrintService;
+            _layoutRepository   = layoutRepository;
+            _editorFactory      = editorFactory;
             InitializeComponent();
             ConfigurarGrid();
             dtpInicio.Value = DateTime.Today.AddDays(-6);
@@ -201,9 +212,9 @@ namespace BuscaPreco.Presentation.WindowsForms
         {
             if (dgvProdutos.SelectedRows.Count == 0) return;
 
-            var row = dgvProdutos.SelectedRows[0];
-            var codigo = row.Cells["colCod"].Value?.ToString() ?? string.Empty;
-            var nome = row.Cells["colNome"].Value?.ToString() ?? string.Empty;
+            var row    = dgvProdutos.SelectedRows[0];
+            var codigo = row.Cells["colCod"].Value?.ToString()  ?? string.Empty;
+            var nome   = row.Cells["colNome"].Value?.ToString() ?? string.Empty;
 
             if (string.IsNullOrWhiteSpace(codigo)) return;
 
@@ -213,18 +224,36 @@ namespace BuscaPreco.Presentation.WindowsForms
             using var dlg = new PrintDialog { UseEXDialog = true };
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
+            var printerName = dlg.PrinterSettings.PrinterName;
+            var variaveis   = LabelVariableResolver.CriarVariaveis(nome, preco, codigo);
+            var layout      = _layoutRepository.ObterOuCriarPadrao();
+
             try
             {
-                ArgoxLabelPrinter.Imprimir(dlg.PrinterSettings.PrinterName, nome, preco, codigo);
+                _labelPrintService.Imprimir(printerName, layout, variaveis);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    "Erro ao imprimir etiqueta:\n" + ex.Message,
-                    "BuscaPreço — Impressão",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                // fallback to raw PPLA if GDI+ printing fails
+                try
+                {
+                    ArgoxLabelPrinter.Imprimir(printerName, nome, preco, codigo);
+                }
+                catch
+                {
+                    MessageBox.Show(
+                        "Erro ao imprimir etiqueta:\n" + ex.Message,
+                        "BuscaPreço — Impressão",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                }
             }
+        }
+
+        private void btnEditarLayout_Click(object sender, EventArgs e)
+        {
+            using var editor = _editorFactory();
+            editor.ShowDialog(this);
         }
     }
 }
