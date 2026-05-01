@@ -64,6 +64,9 @@
         private readonly string _dbfFilePath;
         private readonly DbfFileManager _dbfFileManager;
         private readonly Logger _logger;
+        // dBASE.NET opens DBF files with exclusive access; serialize reads to prevent
+        // "file in use" errors when multiple threads query the same instance concurrently.
+        private readonly object _lock = new();
 
         public DbfDatabase(string dbfFilePath, Logger logger)
         {
@@ -81,6 +84,8 @@
 
         public (string des, decimal vlrVenda1) BuscarPorCodigo(string cod)
         {
+            lock (_lock)
+            {
             _dbfFileManager.CopyIfModified();
 
             try
@@ -105,10 +110,13 @@
             }
 
             return (string.Empty, 0m);
+            }
         }
 
         public List<Produto> ListarTudo()
         {
+            lock (_lock)
+            {
             _dbfFileManager.CopyIfModified();
             var produtos = new List<Produto>();
 
@@ -139,6 +147,7 @@
             }
 
             return produtos;
+            }
         }
     }
 

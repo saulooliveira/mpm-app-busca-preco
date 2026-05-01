@@ -1,0 +1,226 @@
+@page
+@model BuscaPreco.Pages.RelatorioModel
+@{
+    ViewData["Title"] = "Relatório de Consultas";
+}
+
+<div class="container-fluid py-3">
+    <h4 class="mb-3 fw-bold text-primary">Relatório de Consultas</h4>
+
+    <form method="get" class="row g-2 align-items-center mb-3">
+        <div class="col-auto">
+            <label class="col-form-label fw-semibold">De:</label>
+        </div>
+        <div class="col-auto">
+            <input type="date" class="form-control" name="Inicio" value="@Model.Inicio.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-auto">
+            <label class="col-form-label fw-semibold">Até:</label>
+        </div>
+        <div class="col-auto">
+            <input type="date" class="form-control" name="Fim" value="@Model.Fim.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Atualizar</button>
+        </div>
+    </form>
+
+    <div class="row mb-3 g-3">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary h-100">
+                <div class="card-body text-center py-3">
+                    <div class="small mb-1 opacity-75">Total de Consultas</div>
+                    <h2 class="mb-0 fw-bold">@Model.Total.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-success h-100">
+                <div class="card-body text-center py-3">
+                    <div class="small mb-1 opacity-75">Encontrados</div>
+                    <h2 class="mb-0 fw-bold">@Model.Encontrados.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-warning h-100">
+                <div class="card-body text-center py-3">
+                    <div class="small mb-1 opacity-75">Não Cadastrados</div>
+                    <h2 class="mb-0 fw-bold">@Model.NaoCadastrados.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-0" id="relTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabProdutos" type="button">Top Produtos</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabHorario" type="button">Por Hora</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabDias" type="button">Por Dia</button>
+        </li>
+    </ul>
+
+    <div class="tab-content border border-top-0 rounded-bottom p-3 bg-white">
+        <div class="tab-pane fade show active" id="tabProdutos">
+            <div class="d-flex justify-content-end mb-2">
+                <button id="btnImprimir" class="btn btn-sm btn-outline-secondary" disabled>
+                    Imprimir Etiqueta
+                </button>
+            </div>
+            <div class="table-responsive" style="max-height:420px;overflow-y:auto">
+                <table class="table table-hover table-striped table-sm mb-0">
+                    <thead class="table-dark sticky-top">
+                        <tr>
+                            <th style="width:40px">#</th>
+                            <th style="width:110px">Código</th>
+                            <th>Descrição</th>
+                            <th class="text-end" style="width:90px">Consultas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ int pos = 1; }
+                        @foreach (var (codigo, nome, qtd) in Model.TopProdutos)
+                        {
+                            <tr class="produto-row" data-codigo="@codigo" data-nome="@nome" style="cursor:pointer">
+                                <td>@pos++</td>
+                                <td>@codigo</td>
+                                <td>@nome</td>
+                                <td class="text-end">@qtd.ToString("N0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tabHorario">
+            <canvas id="chartHorario" height="100"></canvas>
+        </div>
+
+        <div class="tab-pane fade" id="tabDias">
+            <canvas id="chartDias" height="100"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalImprimir" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Imprimir Etiqueta</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold">Produto</label>
+                    <input type="text" class="form-control form-control-sm" id="etNome" readonly />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold">Código de Barras</label>
+                    <input type="text" class="form-control form-control-sm" id="etCodigo" readonly />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold">Preço (ex.: 12,99)</label>
+                    <input type="text" class="form-control form-control-sm" id="etPreco" placeholder="0,00" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold">Nome da Impressora Argox</label>
+                    <input type="text" class="form-control form-control-sm" id="etImpressora"
+                           placeholder="Ex.: Argox OS-214 PPLZ" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnConfirmarImprimir">Imprimir</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const porHoraData = @Html.Raw(Model.PorHoraJson);
+const porDiaData  = @Html.Raw(Model.PorDiaJson);
+
+new Chart(document.getElementById('chartHorario'), {
+    type: 'bar',
+    data: {
+        labels: [...Array(24).keys()].map(h => h.toString().padStart(2,'0') + 'h'),
+        datasets: [{ label: 'Consultas', data: porHoraData, backgroundColor: 'rgba(70,130,180,0.8)', borderRadius: 3 }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+
+new Chart(document.getElementById('chartDias'), {
+    type: 'bar',
+    data: {
+        labels: ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],
+        datasets: [{ label: 'Consultas', data: porDiaData, backgroundColor: 'rgba(60,160,100,0.8)', borderRadius: 3 }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+
+let selectedRow = null;
+document.querySelectorAll('.produto-row').forEach(row => {
+    row.addEventListener('click', () => {
+        document.querySelectorAll('.produto-row').forEach(r => r.classList.remove('table-active'));
+        row.classList.add('table-active');
+        selectedRow = row;
+        document.getElementById('btnImprimir').disabled = false;
+    });
+});
+
+const modalImprimir = new bootstrap.Modal(document.getElementById('modalImprimir'));
+
+document.getElementById('btnImprimir').addEventListener('click', async () => {
+    if (!selectedRow) return;
+    const codigo = selectedRow.dataset.codigo;
+    const nome   = selectedRow.dataset.nome;
+
+    const r = await fetch('/api/relatorio/preco?codigo=' + encodeURIComponent(codigo));
+    const data = r.ok ? await r.json() : { preco: '0,00' };
+
+    document.getElementById('etNome').value    = nome;
+    document.getElementById('etCodigo').value  = codigo;
+    document.getElementById('etPreco').value   = data.preco || '0,00';
+    modalImprimir.show();
+});
+
+document.getElementById('btnConfirmarImprimir').addEventListener('click', async () => {
+    const payload = {
+        impressora: document.getElementById('etImpressora').value.trim(),
+        nome:       document.getElementById('etNome').value,
+        preco:      document.getElementById('etPreco').value.trim(),
+        codigo:     document.getElementById('etCodigo').value
+    };
+    if (!payload.impressora) {
+        alert('Informe o nome exato da impressora Argox.');
+        return;
+    }
+    const btn = document.getElementById('btnConfirmarImprimir');
+    btn.disabled = true;
+    try {
+        const r = await fetch('/api/etiqueta/imprimir', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await r.json();
+        if (r.ok) {
+            modalImprimir.hide();
+            alert('Etiqueta enviada para impressão.');
+        } else {
+            alert('Erro ao imprimir: ' + (data.erro || 'Erro desconhecido'));
+        }
+    } catch (e) {
+        alert('Erro de comunicação: ' + e.message);
+    } finally {
+        btn.disabled = false;
+    }
+});
+</script>
+}

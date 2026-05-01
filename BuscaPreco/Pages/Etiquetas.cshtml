@@ -1,0 +1,453 @@
+@page
+@model BuscaPreco.Pages.EtiquetasModel
+@{
+    ViewData["Title"] = "Imprimir Etiquetas";
+}
+
+<style>
+    .produto-row { cursor: pointer; user-select: none; }
+    .produto-row:hover td { background: rgba(13,110,253,.06); }
+    .produto-row.selecionado td { background: rgba(13,110,253,.13) !important; }
+    .carrinho-item { border-left: 3px solid #0d6efd; }
+    #painelCarrinho { position: sticky; top: 12px; }
+    .qty-ctrl { width: 60px; }
+    .preco-input { width: 90px; }
+    #tabelaProdutos tbody { max-height: 520px; }
+    .tabela-scroll { max-height: 520px; overflow-y: auto; }
+    .badge-total { font-size: .95rem; }
+    #statusImpressao { min-height: 24px; }
+</style>
+
+<div class="container-fluid py-3">
+    <div class="d-flex align-items-center mb-3 gap-2">
+        <h4 class="mb-0 fw-bold text-primary">🏷 Imprimir Etiquetas</h4>
+        <span class="badge bg-secondary badge-total" id="badgeTotal" style="display:none"></span>
+    </div>
+
+    <div class="row g-3">
+
+        @*── Painel esquerdo: busca + tabela de produtos ──*@
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-body p-3">
+                    <div class="input-group mb-3">
+                        <input id="inputBusca" type="search" class="form-control"
+                               placeholder="Buscar por descrição ou código..." autocomplete="off" />
+                        <button class="btn btn-primary" id="btnBuscar" type="button">Buscar</button>
+                        <button class="btn btn-outline-secondary" id="btnLimpar" type="button">✕</button>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted" id="lblContagem"></small>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" id="chkSelecionarTodos" title="Selecionar / desmarcar todos os visíveis" />
+                            <label class="form-check-label small" for="chkSelecionarTodos">Selec. todos</label>
+                        </div>
+                    </div>
+
+                    <div class="tabela-scroll border rounded">
+                        <table class="table table-hover table-sm mb-0" id="tabelaProdutos">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th style="width:36px"></th>
+                                    <th style="width:110px">Código</th>
+                                    <th>Descrição</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyProdutos">
+                                <tr id="trVazio">
+                                    <td colspan="3" class="text-center text-muted py-4">
+                                        Digite para buscar produtos
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @*── Painel direito: carrinho + impressão ──*@
+        <div class="col-lg-5">
+            <div id="painelCarrinho" class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                    <span class="fw-semibold">🛒 Carrinho</span>
+                    <button class="btn btn-link btn-sm text-danger p-0 text-decoration-none"
+                            id="btnLimparCarrinho" title="Remover todos">Limpar</button>
+                </div>
+
+                <div class="card-body p-2" id="listaCarrinho" style="max-height:360px;overflow-y:auto">
+                    <div id="carrinhoVazio" class="text-center text-muted py-4 small">
+                        Nenhum produto selecionado
+                    </div>
+                </div>
+
+                <div class="card-footer bg-white p-3">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold mb-1">Impressora Argox</label>
+                        <input id="inputImpressora" type="text" class="form-control form-control-sm"
+                               placeholder="Carregando impressoras..." autocomplete="off"
+                               list="listaImpressoras" />
+                        <datalist id="listaImpressoras"></datalist>
+                        <div class="form-text d-flex justify-content-between">
+                            <span>Selecione ou digite o nome exato</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none"
+                                    id="btnRecarregarImpressoras" title="Atualizar lista">↺ Atualizar</button>
+                        </div>
+                    </div>
+
+                    <div id="statusImpressao" class="small mb-2"></div>
+
+                    <button id="btnImprimir" class="btn btn-success w-100" disabled>
+                        🖨 Imprimir etiquetas
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+<script>
+// ─── Estado ──────────────────────────────────────────────────────────────────
+const carrinho = new Map(); // codigo → { codigo, nome, preco, copias }
+let todosOsProdutos = [];
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+const IMPRESSORA_KEY = 'etiqueta_impressora';
+const inputImpressora = document.getElementById('inputImpressora');
+inputImpressora.value = localStorage.getItem(IMPRESSORA_KEY) || '';
+inputImpressora.addEventListener('change', () =>
+    localStorage.setItem(IMPRESSORA_KEY, inputImpressora.value.trim()));
+
+carregarImpressoras();
+document.getElementById('btnRecarregarImpressoras').addEventListener('click', carregarImpressoras);
+
+// Busca inicial (carrega todos os produtos)
+buscar('');
+
+// ─── Impressoras ──────────────────────────────────────────────────────────────
+async function carregarImpressoras() {
+    const datalist = document.getElementById('listaImpressoras');
+    try {
+        const r = await fetch('/api/impressoras');
+        const lista = r.ok ? await r.json() : [];
+        datalist.innerHTML = lista.map(n => `<option value="${escHtml(n)}">`).join('');
+
+        // Se o campo estiver vazio e houver exatamente uma Argox, pré-seleciona
+        if (!inputImpressora.value) {
+            const argox = lista.find(n => n.toLowerCase().includes('argox'));
+            if (argox) {
+                inputImpressora.value = argox;
+                localStorage.setItem(IMPRESSORA_KEY, argox);
+            } else if (lista.length > 0) {
+                inputImpressora.placeholder = `${lista.length} impressora(s) disponível(is)`;
+            }
+        }
+    } catch {
+        inputImpressora.placeholder = 'Digite o nome da impressora';
+    }
+}
+
+// ─── Busca ────────────────────────────────────────────────────────────────────
+async function buscar(q) {
+    const url = '/api/produtos' + (q ? '?q=' + encodeURIComponent(q) : '');
+    try {
+        const r = await fetch(url);
+        todosOsProdutos = r.ok ? await r.json() : [];
+    } catch { todosOsProdutos = []; }
+    renderTabela(todosOsProdutos);
+}
+
+document.getElementById('btnBuscar').addEventListener('click', () =>
+    buscar(document.getElementById('inputBusca').value.trim()));
+
+document.getElementById('inputBusca').addEventListener('keydown', e => {
+    if (e.key === 'Enter') buscar(e.target.value.trim());
+});
+
+document.getElementById('btnLimpar').addEventListener('click', () => {
+    document.getElementById('inputBusca').value = '';
+    buscar('');
+});
+
+// ─── Render tabela ────────────────────────────────────────────────────────────
+function renderTabela(lista) {
+    const tbody = document.getElementById('tbodyProdutos');
+    tbody.innerHTML = '';
+
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Nenhum produto encontrado</td></tr>';
+        document.getElementById('lblContagem').textContent = '';
+        document.getElementById('chkSelecionarTodos').checked = false;
+        return;
+    }
+
+    document.getElementById('lblContagem').textContent = lista.length + ' produto(s)';
+
+    lista.forEach(p => {
+        const selecionado = carrinho.has(p.codigoItem);
+        const tr = document.createElement('tr');
+        tr.className = 'produto-row' + (selecionado ? ' selecionado' : '');
+        tr.dataset.codigo = p.codigoItem;
+        tr.dataset.nome = p.descricao1;
+        tr.innerHTML = `
+            <td class="text-center">
+                <input type="checkbox" class="form-check-input chk-produto" ${selecionado ? 'checked' : ''}
+                       data-codigo="${p.codigoItem}" data-nome="${escHtml(p.descricao1)}" />
+            </td>
+            <td class="small font-monospace">${escHtml(p.codigoItem)}</td>
+            <td class="small">${escHtml(p.descricao1)}</td>`;
+        tbody.appendChild(tr);
+
+        tr.addEventListener('click', e => {
+            if (e.target.type === 'checkbox') return;
+            const chk = tr.querySelector('.chk-produto');
+            chk.checked = !chk.checked;
+            toggleProduto(chk);
+        });
+
+        tr.querySelector('.chk-produto').addEventListener('change', e => toggleProduto(e.target));
+    });
+
+    sincronizarChkTodos();
+}
+
+function toggleProduto(chk) {
+    const codigo = chk.dataset.codigo;
+    const nome = chk.dataset.nome;
+    const tr = chk.closest('tr');
+
+    if (chk.checked) {
+        if (!carrinho.has(codigo)) {
+            adicionarAoCarrinho(codigo, nome);
+        }
+        tr.classList.add('selecionado');
+    } else {
+        carrinho.delete(codigo);
+        tr.classList.remove('selecionado');
+        renderCarrinho();
+    }
+    sincronizarChkTodos();
+}
+
+// ─── Selecionar todos ─────────────────────────────────────────────────────────
+document.getElementById('chkSelecionarTodos').addEventListener('change', function () {
+    document.querySelectorAll('.chk-produto').forEach(chk => {
+        chk.checked = this.checked;
+        const codigo = chk.dataset.codigo;
+        const nome = chk.dataset.nome;
+        const tr = chk.closest('tr');
+        if (this.checked) {
+            if (!carrinho.has(codigo)) adicionarAoCarrinho(codigo, nome, false);
+            tr.classList.add('selecionado');
+        } else {
+            carrinho.delete(codigo);
+            tr.classList.remove('selecionado');
+        }
+    });
+    renderCarrinho();
+});
+
+function sincronizarChkTodos() {
+    const todos = document.querySelectorAll('.chk-produto');
+    const marcados = document.querySelectorAll('.chk-produto:checked');
+    const chkTodos = document.getElementById('chkSelecionarTodos');
+    chkTodos.checked = todos.length > 0 && marcados.length === todos.length;
+    chkTodos.indeterminate = marcados.length > 0 && marcados.length < todos.length;
+}
+
+// ─── Carrinho ─────────────────────────────────────────────────────────────────
+function adicionarAoCarrinho(codigo, nome, rerender = true) {
+    if (carrinho.has(codigo)) {
+        carrinho.get(codigo).copias++;
+    } else {
+        carrinho.set(codigo, { codigo, nome, preco: '', copias: 1 });
+        // Busca preço em background
+        fetch('/api/relatorio/preco?codigo=' + encodeURIComponent(codigo))
+            .then(r => r.ok ? r.json() : { preco: '' })
+            .then(d => {
+                if (carrinho.has(codigo)) {
+                    carrinho.get(codigo).preco = d.preco || '';
+                    atualizarPrecoNoDOM(codigo, d.preco || '');
+                }
+            })
+            .catch(() => {});
+    }
+    if (rerender) renderCarrinho();
+}
+
+function atualizarPrecoNoDOM(codigo, preco) {
+    const input = document.querySelector(`.input-preco[data-codigo="${CSS.escape(codigo)}"]`);
+    if (input && !input.value) input.value = preco;
+}
+
+function renderCarrinho() {
+    const lista = document.getElementById('listaCarrinho');
+    const vazio = document.getElementById('carrinhoVazio');
+    const btnImprimir = document.getElementById('btnImprimir');
+    const badge = document.getElementById('badgeTotal');
+
+    if (carrinho.size === 0) {
+        lista.innerHTML = '';
+        lista.appendChild(vazio);
+        vazio.style.display = '';
+        btnImprimir.disabled = true;
+        badge.style.display = 'none';
+        return;
+    }
+
+    vazio.style.display = 'none';
+    lista.innerHTML = '';
+
+    let totalEtiquetas = 0;
+    carrinho.forEach(item => {
+        totalEtiquetas += item.copias;
+        const div = document.createElement('div');
+        div.className = 'carrinho-item rounded p-2 mb-2 bg-white border small';
+        div.dataset.codigo = item.codigo;
+        div.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start mb-1">
+                <div>
+                    <div class="fw-semibold text-truncate" style="max-width:220px" title="${escHtml(item.nome)}">${escHtml(item.nome)}</div>
+                    <div class="text-muted font-monospace">${escHtml(item.codigo)}</div>
+                </div>
+                <button class="btn btn-link btn-sm text-danger p-0 ms-2 btn-remover" data-codigo="${escHtml(item.codigo)}" title="Remover">✕</button>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <label class="mb-0 text-muted">Cópias:</label>
+                <input type="number" min="1" max="99" value="${item.copias}"
+                       class="form-control form-control-sm qty-ctrl input-copias" data-codigo="${escHtml(item.codigo)}" />
+                <label class="mb-0 text-muted">R$</label>
+                <input type="text" value="${escHtml(item.preco)}" placeholder="0,00"
+                       class="form-control form-control-sm preco-input input-preco" data-codigo="${escHtml(item.codigo)}" />
+            </div>`;
+        lista.appendChild(div);
+    });
+
+    lista.appendChild(document.getElementById('carrinhoVazio'));
+
+    // Eventos dos itens recém-renderizados
+    lista.querySelectorAll('.btn-remover').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const codigo = btn.dataset.codigo;
+            carrinho.delete(codigo);
+            // Desmarca na tabela
+            const chk = document.querySelector(`.chk-produto[data-codigo="${CSS.escape(codigo)}"]`);
+            if (chk) { chk.checked = false; chk.closest('tr').classList.remove('selecionado'); }
+            sincronizarChkTodos();
+            renderCarrinho();
+        });
+    });
+
+    lista.querySelectorAll('.input-copias').forEach(inp => {
+        inp.addEventListener('change', () => {
+            const v = Math.max(1, Math.min(99, parseInt(inp.value) || 1));
+            inp.value = v;
+            carrinho.get(inp.dataset.codigo).copias = v;
+            atualizarBotao();
+        });
+    });
+
+    lista.querySelectorAll('.input-preco').forEach(inp => {
+        inp.addEventListener('change', () => {
+            carrinho.get(inp.dataset.codigo).preco = inp.value.trim();
+        });
+    });
+
+    btnImprimir.disabled = false;
+    badge.style.display = '';
+    badge.textContent = totalEtiquetas + ' etiqueta' + (totalEtiquetas !== 1 ? 's' : '');
+    btnImprimir.textContent = `🖨 Imprimir ${totalEtiquetas} etiqueta${totalEtiquetas !== 1 ? 's' : ''}`;
+}
+
+function atualizarBotao() {
+    let total = 0;
+    carrinho.forEach(i => total += i.copias);
+    const btn = document.getElementById('btnImprimir');
+    const badge = document.getElementById('badgeTotal');
+    btn.textContent = `🖨 Imprimir ${total} etiqueta${total !== 1 ? 's' : ''}`;
+    badge.textContent = total + ' etiqueta' + (total !== 1 ? 's' : '');
+}
+
+// ─── Limpar carrinho ──────────────────────────────────────────────────────────
+document.getElementById('btnLimparCarrinho').addEventListener('click', () => {
+    carrinho.clear();
+    document.querySelectorAll('.chk-produto').forEach(chk => {
+        chk.checked = false;
+        chk.closest('tr').classList.remove('selecionado');
+    });
+    sincronizarChkTodos();
+    renderCarrinho();
+});
+
+// ─── Impressão ────────────────────────────────────────────────────────────────
+document.getElementById('btnImprimir').addEventListener('click', async () => {
+    const impressora = document.getElementById('inputImpressora').value.trim();
+    if (!impressora) {
+        setStatus('warning', 'Informe o nome da impressora antes de imprimir.');
+        document.getElementById('inputImpressora').focus();
+        return;
+    }
+    if (carrinho.size === 0) return;
+
+    const btn = document.getElementById('btnImprimir');
+    btn.disabled = true;
+    setStatus('info', 'Enviando para impressão...');
+
+    let erros = 0;
+    let enviados = 0;
+    const mensagensErro = [];
+
+    for (const [, item] of carrinho) {
+        const precoRaw = (item.preco || '0,00').trim();
+        setStatus('info', `Enviando "${item.nome}"...`);
+        try {
+            const r = await fetch('/api/etiqueta/imprimir', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    impressora,
+                    nome: item.nome,
+                    preco: precoRaw,
+                    codigo: item.codigo,
+                    copias: item.copias
+                })
+            });
+            if (r.ok) {
+                enviados += item.copias;
+            } else {
+                const d = await r.json().catch(() => ({}));
+                erros++;
+                mensagensErro.push(d.erro || 'Erro desconhecido');
+            }
+        } catch (e) {
+            erros++;
+            mensagensErro.push('Falha de rede: ' + e.message);
+        }
+    }
+
+    if (erros === 0) {
+        setStatus('success', `✓ ${enviados} etiqueta${enviados !== 1 ? 's' : ''} enviada${enviados !== 1 ? 's' : ''} para a impressora.`);
+    } else {
+        // Mostra a mensagem do primeiro erro diretamente na tela (sem alert)
+        const msgPrincipal = mensagensErro[0] || 'Verifique o nome da impressora.';
+        setStatus('danger', `⚠ Erro: ${msgPrincipal}`);
+    }
+
+    btn.disabled = carrinho.size === 0;
+});
+
+function setStatus(tipo, msg) {
+    const el = document.getElementById('statusImpressao');
+    el.className = `small text-${tipo}`;
+    el.textContent = msg;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function escHtml(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+}

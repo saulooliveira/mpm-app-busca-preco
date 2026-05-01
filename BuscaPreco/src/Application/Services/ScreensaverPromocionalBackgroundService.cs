@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using BuscaPreco.Application.Configurations;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.CrossCutting;
+using BuscaPreco.Infrastructure.Scrapers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
@@ -15,7 +16,7 @@ namespace BuscaPreco.Application.Services
     {
         private readonly IProdutoCacheService _produtoCacheService;
         private readonly ITerminalActivityMonitor _terminalActivityMonitor;
-        private readonly ITerminalDisplayService _terminalDisplayService;
+        private readonly Servidor _servidor;
         private readonly FeatureConfig _featureConfig;
         private readonly Logger _logger;
         private readonly Random _random;
@@ -25,14 +26,14 @@ namespace BuscaPreco.Application.Services
         public ScreensaverPromocionalBackgroundService(
             IProdutoCacheService produtoCacheService,
             ITerminalActivityMonitor terminalActivityMonitor,
-            ITerminalDisplayService terminalDisplayService,
+            Servidor servidor,
             IOptions<FeatureConfig> featureOptions,
             IOptions<ProdutosFixadosConfig> produtosFixadosOptions,
             Logger logger)
         {
             _produtoCacheService = produtoCacheService;
             _terminalActivityMonitor = terminalActivityMonitor;
-            _terminalDisplayService = terminalDisplayService;
+            _servidor = servidor;
             _featureConfig = featureOptions.Value;
             _logger = logger;
             _random = new Random();
@@ -86,15 +87,11 @@ namespace BuscaPreco.Application.Services
                             if (selectedProduto == null)
                                 selectedProduto = produtos.ElementAt(_random.Next(produtos.Count));
 
-                            var nome = (selectedProduto.des ?? string.Empty);
-                            if (nome.Length > 20) nome = nome.Substring(0, 20);
-
-                            var preco = selectedProduto.vlrVenda1.ToString("N2", new CultureInfo("pt-BR"));
-                            if (preco.Length > 20) preco = preco.Substring(0, 20);
-
+                            var nome = GertecProtocol.Truncate(selectedProduto.Descricao1 ?? string.Empty);
+                            var preco = GertecProtocol.Truncate(selectedProduto.Preco.ToString("N2", new CultureInfo("pt-BR")));
                             int duracaoMesg = rotation > 9 ? 9 : (rotation < 1 ? 1 : rotation);
 
-                            _terminalDisplayService.MostrarProdutoPromocional(nome, preco, duracaoMesg);
+                            _servidor.BroadcastMesg(nome, preco, duracaoMesg);
                             _logger.Info("Screensaver exibiu produto via #mesg: {Produto} {Preco} {Duração}s", nome, preco, duracaoMesg);
                         }
                     }

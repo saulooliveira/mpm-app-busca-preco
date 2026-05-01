@@ -15,12 +15,12 @@ namespace BuscaPreco.Infrastructure.Scrapers
         public delegate void onReceiveCommand(object sender, string comando);
         public event onReceiveCommand onReceive;
 
-        public delegate void onChangeList(ArrayList lista);
+        public delegate void onChangeList(List<Terminal> lista);
         public event onChangeList onChange;
 
         private Socket server;
         private Socket cliente;
-        private readonly ArrayList listaTerminais;
+        private readonly List<Terminal> listaTerminais;
         private readonly object listaTerminaisLock = new object();
         private Task serverTask;
         private CancellationTokenSource cancellationTokenSource;
@@ -58,21 +58,17 @@ namespace BuscaPreco.Infrastructure.Scrapers
         {
             this.logger = logger;
             terminalConfig = terminalOptions.Value;
-            listaTerminais = new ArrayList();
+            listaTerminais = new List<Terminal>();
             ipServer = new IPEndPoint(IPAddress.Any, terminalConfig.Porta);
         }
 
 
         public void BroadcastProdutoPromocional(string nome, string preco)
         {
-            Terminal[] terminaisSnapshot;
+            List<Terminal> terminaisSnapshot;
             lock (listaTerminaisLock)
             {
-                terminaisSnapshot = new Terminal[listaTerminais.Count];
-                for (var i = 0; i < listaTerminais.Count; i++)
-                {
-                    terminaisSnapshot[i] = (Terminal)listaTerminais[i];
-                }
+                terminaisSnapshot = new List<Terminal>(listaTerminais);
             }
 
             foreach (var terminal in terminaisSnapshot)
@@ -83,14 +79,10 @@ namespace BuscaPreco.Infrastructure.Scrapers
 
         public void BroadcastMesg(string linha1, string linha2, int tempoSegundos)
         {
-            Terminal[] terminaisSnapshot;
+            List<Terminal> terminaisSnapshot;
             lock (listaTerminaisLock)
             {
-                terminaisSnapshot = new Terminal[listaTerminais.Count];
-                for (var i = 0; i < listaTerminais.Count; i++)
-                {
-                    terminaisSnapshot[i] = (Terminal)listaTerminais[i];
-                }
+                terminaisSnapshot = new List<Terminal>(listaTerminais);
             }
 
             foreach (var terminal in terminaisSnapshot)
@@ -108,27 +100,19 @@ namespace BuscaPreco.Infrastructure.Scrapers
             lock (listaTerminaisLock)
             {
                 if (index < 0 || index >= listaTerminais.Count) return null;
-                return (Terminal)listaTerminais[index];
+                return listaTerminais[index];
             }
         }
 
         /// <summary>
         /// Retorna snapshot somente-leitura de todos os terminais conectados.
         /// </summary>
-        public Terminal[] GetTerminaisSnapshot()
+        public List<Terminal> GetTerminaisSnapshot()
         {
             lock (listaTerminaisLock)
             {
-                var arr = new Terminal[listaTerminais.Count];
-                for (int i = 0; i < listaTerminais.Count; i++)
-                    arr[i] = (Terminal)listaTerminais[i];
-                return arr;
+                return new List<Terminal>(listaTerminais);
             }
-        }
-
-        public void startServer()
-        {
-            Start();
         }
 
         public void Start()
@@ -160,14 +144,6 @@ namespace BuscaPreco.Infrastructure.Scrapers
             await serverReadyTcs.Task;
         }
 
-        [Obsolete]
-        public void stopServer()
-        {
-            cancellationTokenSource?.Cancel();
-            server?.Close();
-        }
-
-        // Non-obsolete wrapper method to stop the server
         public void Stop()
         {
             cancellationTokenSource?.Cancel();
@@ -185,6 +161,11 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 try
                 {
                     server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    
+                    // Habilita a reutilização do endereço para evitar o erro "normalmente é permitida apenas uma utilização de cada endereço"
+                    // Isso é crucial quando o servidor é reiniciado rapidamente e a porta ainda está no estado TIME_WAIT do SO.
+                    server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    
                     server.Bind(ipServer);
                     server.Listen(5);
                     logger.Info("Servidor do terminal iniciado na porta {Porta}", terminalConfig.Porta);
@@ -207,10 +188,25 @@ namespace BuscaPreco.Infrastructure.Scrapers
                 }
                 catch (Exception ex)
                 {
-                    logger.Warning("Conexão com terminal indisponível. Tentando reconectar em {Delay}ms. Erro: {Erro}", terminalConfig.ReconnectDelayMs, ex.Message);
+                    // Se o erro for especificamente de endereço em uso, logamos com um nível mais apropriado e limpamos o socket
+                    if (ex is SocketException se && se.SocketErrorCode == SocketError.AddressAlreadyInUse)
+                    {
+                        logger.Warning("A porta {Porta} já está em uso ou ainda não foi liberada pelo sistema operacional. Tentando novamente em {Delay}ms...", terminalConfig.Porta, terminalConfig.ReconnectDelayMs);
+                    }
+                    else
+                    {
+                        logger.Warning("Conexão com terminal indisponível. Tentando reconectar em {Delay}ms. Erro: {Erro}", terminalConfig.ReconnectDelayMs, ex.Message);
+                    }
+
                     try
                     {
-                        server?.Close();
+                        if (server != null)
+                        {
+                            if (server.Connected) server.Shutdown(SocketShutdown.Both);
+                            server.Close();
+                            server.Dispose();
+                            server = null;
+                        }
                     }
                     catch
                     {
