@@ -111,7 +111,8 @@ public sealed class ServidorDeTestesContext : IAsyncDisposable
         Directory.CreateDirectory(fixturesDir);
 
         var base64Path = Path.Combine(fixturesDir, "produtos.dbf.base64.txt");
-        var dbfPath = Path.Combine(fixturesDir, "produtos.dbf");
+        // Unique filename per call so parallel test classes don't contend on the same path.
+        var dbfPath = Path.Combine(fixturesDir, $"produtos-{Guid.NewGuid():N}.dbf");
 
         var base64 = File.ReadAllText(base64Path).Trim();
         File.WriteAllBytes(dbfPath, Convert.FromBase64String(base64));
