@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using Serilog;
 
 namespace BuscaPreco.Infrastructure.Services
 {
@@ -105,7 +107,7 @@ namespace BuscaPreco.Infrastructure.Services
 
             sb.Append($"P{copias}\r\n");
 
-            RawPrint(nomePrinter, Encoding.ASCII.GetBytes(sb.ToString()));
+            RawPrint(nomePrinter, sb.ToString());
         }
 
         /// <summary>Retorna os nomes de todas as impressoras instaladas no Windows.</summary>
@@ -153,8 +155,32 @@ namespace BuscaPreco.Infrastructure.Services
 
         private static string EscapePpla(string s) => s.Replace("\"", "'");
 
-        private static void RawPrint(string printerName, byte[] bytes)
+        // Windows-1252 (ANSI) para suportar caracteres brasileiros (ã, é, ç, etc.)
+        // ASCII (7-bit) substituiria esses caracteres por '?' e quebraria o texto na impressora.
+        private static readonly Encoding _ansi = Encoding.GetEncoding(1252);
+
+        private static void RawPrint(string printerName, string ppla)
         {
+            // ── Diagnóstico: loga o PPLA e salva arquivo .prn para teste manual via CMD ──
+            Log.Information("[ArgoxLabelPrinter] Impressora alvo: {Printer}", printerName);
+            Log.Information("[ArgoxLabelPrinter] Conteúdo PPLA enviado:\n{Ppla}", ppla);
+
+            var prnPath = Path.Combine(Path.GetTempPath(), "argox_etiqueta.prn");
+            try
+            {
+                File.WriteAllText(prnPath, ppla, _ansi);
+                Log.Information("[ArgoxLabelPrinter] Arquivo .prn salvo em: {Path}", prnPath);
+                Log.Information("[ArgoxLabelPrinter] Para testar manualmente via CMD: copy /b \"{Path}\" \"\\\\\\\\localhost\\\\{Printer}\"",
+                    prnPath, printerName);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[ArgoxLabelPrinter] Não foi possível salvar o arquivo .prn de diagnóstico");
+            }
+
+            var bytes = _ansi.GetBytes(ppla);
+            Log.Information("[ArgoxLabelPrinter] Total de bytes a enviar: {Bytes}", bytes.Length);
+
             if (!OpenPrinter(printerName, out var hPrinter, IntPtr.Zero))
             {
                 var win32Err = Marshal.GetLastWin32Error();
@@ -194,6 +220,7 @@ namespace BuscaPreco.Infrastructure.Services
                             throw new InvalidOperationException(
                                 $"Falha ao enviar dados para a impressora. (Win32 erro {win32Err})");
                         }
+                        Log.Information("[ArgoxLabelPrinter] WritePrinter aceitou {Written}/{Total} bytes", written, bytes.Length);
                     }
                     finally
                     {

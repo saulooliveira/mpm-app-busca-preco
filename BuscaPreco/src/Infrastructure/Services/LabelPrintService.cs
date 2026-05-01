@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using BuscaPreco.Application.Interfaces;
 using BuscaPreco.Domain.Entities;
+using Serilog;
 
 namespace BuscaPreco.Infrastructure.Services;
 
@@ -30,7 +32,7 @@ public class LabelPrintService : ILabelPrintService
         if (copias < 1) copias = 1;
 
         var ppla = GerarPpla(layout, variaveis, copias);
-        RawPrint(nomePrinter, Encoding.ASCII.GetBytes(ppla));
+        RawPrint(nomePrinter, ppla);
     }
 
     // ── PPLA generation ───────────────────────────────────────────────────────
@@ -143,6 +145,10 @@ public class LabelPrintService : ILabelPrintService
 
     // ── Win32 RAW printing (same P/Invoke as ArgoxLabelPrinter) ──────────────
 
+    // Windows-1252 (ANSI) para suportar caracteres brasileiros (ã, é, ç, etc.)
+    // ASCII (7-bit) substituiria esses caracteres por '?' e quebraria o texto na impressora.
+    private static readonly Encoding _ansi = Encoding.GetEncoding(1252);
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct DOCINFO
     {
@@ -166,8 +172,28 @@ public class LabelPrintService : ILabelPrintService
     [DllImport("winspool.Drv", SetLastError = true)]
     private static extern bool ClosePrinter(IntPtr hPrinter);
 
-    private static void RawPrint(string printerName, byte[] bytes)
+    private static void RawPrint(string printerName, string ppla)
     {
+        // ── Diagnóstico: loga o PPLA e salva arquivo .prn para teste manual via CMD ──
+        Log.Information("[LabelPrintService] Impressora alvo: {Printer}", printerName);
+        Log.Information("[LabelPrintService] Conteúdo PPLA enviado:\n{Ppla}", ppla);
+
+        var prnPath = Path.Combine(Path.GetTempPath(), "argox_etiqueta.prn");
+        try
+        {
+            File.WriteAllText(prnPath, ppla, _ansi);
+            Log.Information("[LabelPrintService] Arquivo .prn salvo em: {Path}", prnPath);
+            Log.Information("[LabelPrintService] Para testar manualmente via CMD: copy /b \"{Path}\" \"\\\\\\\\localhost\\\\{Printer}\"",
+                prnPath, printerName);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[LabelPrintService] Não foi possível salvar o arquivo .prn de diagnóstico");
+        }
+
+        var bytes = _ansi.GetBytes(ppla);
+        Log.Information("[LabelPrintService] Total de bytes a enviar: {Bytes}", bytes.Length);
+
         if (!OpenPrinter(printerName, out var hPrinter, IntPtr.Zero))
             throw new InvalidOperationException(
                 $"Impressora '{printerName}' não encontrada. (Win32 erro {Marshal.GetLastWin32Error()})");
@@ -188,6 +214,7 @@ public class LabelPrintService : ILabelPrintService
                     if (!WritePrinter(hPrinter, pBytes, bytes.Length, out int written) || written == 0)
                         throw new InvalidOperationException(
                             $"Falha ao enviar dados. (Win32 erro {Marshal.GetLastWin32Error()})");
+                    Log.Information("[LabelPrintService] WritePrinter aceitou {Written}/{Total} bytes", written, bytes.Length);
                 }
                 finally { Marshal.FreeHGlobal(pBytes); }
                 EndPagePrinter(hPrinter);
