@@ -131,6 +131,5 @@ O **BuscaPreco** não apenas responde consultas, mas também gera inteligência 
 ## ⚖️ Licença
 
 Este projeto está sob a licença descrita no arquivo [LICENSE](LICENSE).
-
 ---
 *Desenvolvido para garantir agilidade e confiabilidade no ponto de venda.
