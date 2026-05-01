@@ -38,15 +38,19 @@
 
   <ItemGroup>
     <Compile Remove="tests\**\*.cs" />
+    <Compile Remove="Tests\**\*.cs" />
     <Compile Remove="tools\**\*.cs" />
     <Compile Remove="Tools\**\*.cs" />
     <Content Remove="tests\**\*" />
+    <Content Remove="Tests\**\*" />
     <Content Remove="tools\**\*" />
     <Content Remove="Tools\**\*" />
     <EmbeddedResource Remove="tests\**\*" />
+    <EmbeddedResource Remove="Tests\**\*" />
     <EmbeddedResource Remove="tools\**\*" />
     <EmbeddedResource Remove="Tools\**\*" />
     <None Remove="tests\**\*" />
+    <None Remove="Tests\**\*" />
     <None Remove="tools\**\*" />
     <None Remove="Tools\**\*" />
   </ItemGroup>
