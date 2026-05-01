@@ -100,10 +100,19 @@ namespace BuscaPreco
                     services.AddSingleton<ProdutoCacheService>();
                     services.AddSingleton<IProdutoCacheService>(sp => sp.GetRequiredService<ProdutoCacheService>());
                     services.AddSingleton<AudioService>();
-                    
+
+                    // label editor / printer services
+                    services.AddSingleton<LabelVariableResolver>();
+                    services.AddSingleton<BarcodeAndQrRenderer>();
+                    services.AddSingleton<LabelLayoutRenderer>();
+                    services.AddSingleton<ILabelPrintService, LabelPrintService>();
+                    services.AddSingleton<IEtiquetaLayoutRepository, EtiquetaLayoutRepository>();
+                    services.AddTransient<EtiquetaEditorForm>();
+                    services.AddSingleton<Func<EtiquetaEditorForm>>(sp => () => sp.GetRequiredService<EtiquetaEditorForm>());
+
                     services.AddTransient<RelatorioForm>();
                     services.AddSingleton<Func<RelatorioForm>>(sp => () => sp.GetRequiredService<RelatorioForm>());
-                    
+
                     services.AddSingleton<Servidor>();
 
                     services.AddSingleton<DbfDatabase>(sp =>
@@ -122,7 +131,7 @@ namespace BuscaPreco
 
                     services.AddTransient<ConfiguracaoForm>();
                     services.AddSingleton<Func<ConfiguracaoForm>>(sp => () => sp.GetRequiredService<ConfiguracaoForm>());
-                    
+
                     services.AddSingleton<TrayApplicationContext>();
                 })
                 .Build();
